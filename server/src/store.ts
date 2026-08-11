@@ -273,8 +273,6 @@ class DataStore {
     logLines: [] as string[],
   };
 
-  calibration: { mode: "off" | "rx" | "tx" | "duplex"; rssiDbm?: number } = { mode: "off" };
-
   logBuffer: { timestamp: number; text: string }[] = [];
 
   pushLog(text: string) {

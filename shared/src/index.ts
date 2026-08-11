@@ -256,9 +256,27 @@ export interface FirmwareUpgradeState {
   logLines: string[];
 }
 
+// Not an RX/TX/duplex mode selector (an earlier wrong guess) — the real
+// feature runs MMDVMCal's per-protocol BER (bit error rate) test against
+// the modem while you nudge a frequency offset, exactly matching
+// admin/calibration.php's UDP-controlled tool.
+export type CalibrationMode = "dstar" | "dmr" | "ysf" | "p25" | "nxdn";
+
+export interface CalibrationStats {
+  frames: number;
+  bits: number;
+  errors: number;
+  berPercent: number;
+}
+
 export interface CalibrationState {
-  mode: "off" | "rx" | "tx" | "duplex";
-  rssiDbm?: number;
+  running: boolean;
+  activeMode: CalibrationMode | null;
+  baseFrequencyHz: number;
+  offsetHz: number;
+  stepHz: 25 | 50 | 100;
+  current: CalibrationStats;
+  total: CalibrationStats;
 }
 
 export interface LogLine {
@@ -283,4 +301,6 @@ export type ServerEvent =
   | { type: "activity:new"; payload: { scope: "gateway" | "localRf"; entry: ActivityEntry } }
   | { type: "system:update"; payload: SystemInfo }
   | { type: "firmware:update"; payload: FirmwareUpgradeState }
-  | { type: "log:line"; payload: LogLine };
+  | { type: "log:line"; payload: LogLine }
+  | { type: "calibration:update"; payload: CalibrationState }
+  | { type: "calibration:log"; payload: { text: string } };

@@ -1,4 +1,4 @@
-import type { DashboardState, FirmwareUpgradeState, LogLine, ServerEvent, SystemInfo } from "@pistar/shared";
+import type { CalibrationState, DashboardState, FirmwareUpgradeState, LogLine, ServerEvent, SystemInfo } from "@pistar/shared";
 import { create } from "zustand";
 
 interface LiveState {
@@ -7,6 +7,8 @@ interface LiveState {
   system: SystemInfo | null;
   firmware: FirmwareUpgradeState | null;
   recentLogs: LogLine[];
+  calibration: CalibrationState | null;
+  calibrationLog: string[];
   connect: () => void;
 }
 
@@ -19,6 +21,8 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   system: null,
   firmware: null,
   recentLogs: [],
+  calibration: null,
+  calibrationLog: [],
 
   connect: () => {
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
@@ -56,6 +60,12 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         case "activity:new":
           // dashboard:update already carries the merged activity list;
           // this event exists for consumers that want deltas only.
+          break;
+        case "calibration:update":
+          set({ calibration: message.payload });
+          break;
+        case "calibration:log":
+          set((state) => ({ calibrationLog: [...state.calibrationLog, message.payload.text].slice(-500) }));
           break;
       }
     };

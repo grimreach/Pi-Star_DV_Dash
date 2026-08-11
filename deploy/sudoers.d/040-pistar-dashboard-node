@@ -6,11 +6,11 @@
 # what this app currently needs: writing /etc/mmdvmhost, restarting
 # MMDVMHost, WiFi scanning, WiFi connect/disconnect via add_network/
 # set_network/enable_network/disable_network/remove_network/save_config,
-# and power (reboot/shutdown). Does not grant broad root access, and
-# deliberately excludes ifdown/ifup and wpa_cli reconfigure/select_network
-# — select_network in particular would disable every other configured
-# network profile, which could break a working connection if a new one
-# fails (see wifiConnect.ts).
+# power (reboot/shutdown), and modem calibration (pistar-calibration-start).
+# Does not grant broad root access, and deliberately excludes ifdown/ifup
+# and wpa_cli reconfigure/select_network — select_network in particular
+# would disable every other configured network profile, which could break
+# a working connection if a new one fails (see wifiConnect.ts).
 #
 # Install: copy this file to /etc/sudoers.d/040-pistar-dashboard-node,
 # then `sudo chmod 440` it and `sudo visudo -c` to validate syntax before
@@ -53,8 +53,12 @@ Cmnd_Alias PISTAR_DASH_NODE_POWER = \
     /sbin/reboot, \
     /sbin/shutdown -h now
 
+Cmnd_Alias PISTAR_DASH_NODE_CALIBRATION = \
+    /usr/local/sbin/pistar-calibration-start, \
+    /usr/local/sbin/pistar-calibration-start stop
+
 Cmnd_Alias PISTAR_DASH_NODE_ALL = \
     PISTAR_DASH_NODE_MOUNT, PISTAR_DASH_NODE_INSTALL, PISTAR_DASH_NODE_SYSTEMCTL, PISTAR_DASH_NODE_WIFI, \
-    PISTAR_DASH_NODE_POWER
+    PISTAR_DASH_NODE_POWER, PISTAR_DASH_NODE_CALIBRATION
 
 pi-star ALL=(root) NOPASSWD: PISTAR_DASH_NODE_ALL
