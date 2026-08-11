@@ -12,8 +12,13 @@ import type { SectionEdit } from "./configWriter.js";
  * added to the allow-list first.
  */
 
+// Pi-Star always quotes Location/Description regardless of content (see
+// the real device's config: `Description="Country"` even though "Country"
+// has no space/comma) — quoting conditionally on content, as an earlier
+// version of this did, silently dropped quotes on unquoted-looking values
+// and produced an unnecessary diff on every save. Always quote instead.
 function quote(value: string): string {
-  return value.includes(" ") || value.includes(",") ? `"${value}"` : value;
+  return `"${value}"`;
 }
 
 function bool01(value: boolean): string {
