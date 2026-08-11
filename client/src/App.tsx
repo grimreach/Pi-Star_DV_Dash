@@ -28,7 +28,7 @@ export function App() {
   }, [connect, checkSession]);
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-4">
+    <div className="mx-auto max-w-[1800px] px-4 py-4">
       <Header />
       <main>
         <Routes>

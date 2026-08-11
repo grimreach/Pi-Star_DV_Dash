@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../auth.js";
 import { store } from "../store.js";
-import { scanWifiNetworks } from "../pistar/wifiScan.js";
+import { getWifiConnectionStatus, scanWifiNetworks } from "../pistar/wifiScan.js";
 import { connectToWifi, disconnectWifi } from "../pistar/wifiConnect.js";
 
 export const wifiRouter = Router();
@@ -14,6 +14,18 @@ wifiRouter.use(requireAuth);
 wifiRouter.get("/", async (_req, res) => {
   const real = await scanWifiNetworks();
   res.json(real ?? store.wifiNetworks);
+});
+
+// Fast path for places (the dashboard widget) that just need "connected to
+// X or not" — no 3s scan, just `wpa_cli status`.
+wifiRouter.get("/status", async (_req, res) => {
+  const real = await getWifiConnectionStatus();
+  if (real) {
+    res.json(real);
+    return;
+  }
+  const connected = store.wifiNetworks.find((n) => n.connected);
+  res.json({ connected: Boolean(connected), ssid: connected?.ssid ?? null });
 });
 
 const connectSchema = z.object({ ssid: z.string().min(1), password: z.string().optional() });

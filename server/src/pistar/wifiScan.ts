@@ -41,6 +41,13 @@ function extractSsid(statusOutput: string): string | null {
   return match ? match[1]! : null;
 }
 
+/** Fast — just `wpa_cli status`, no scan. For places (like a dashboard widget) that only need "connected to X or not". */
+export async function getWifiConnectionStatus(): Promise<{ connected: boolean; ssid: string | null } | null> {
+  const statusOutput = await runWpaCli(["status"]);
+  if (statusOutput === null) return null;
+  return { connected: /^wpa_state=COMPLETED$/m.test(statusOutput), ssid: extractSsid(statusOutput) };
+}
+
 /** Pure — parses wpa_cli's tab-separated scan_results output. Easy to test without touching sudo/child_process. */
 export function parseScanResults(raw: string, connectedSsid: string | null): WifiNetwork[] {
   const seen = new Map<string, WifiNetwork>();

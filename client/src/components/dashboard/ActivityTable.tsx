@@ -12,11 +12,20 @@ const MODE_LABELS: Record<string, string> = {
   pocsag: "POCSAG",
 };
 
-export function ActivityTable({ title, entries, showRssi }: { title: string; entries: ActivityEntry[]; showRssi?: boolean }) {
-  return (
-    <div className="panel mb-4">
-      <div className="panel-header">{title}</div>
-      <div className="overflow-x-auto">
+export function ActivityTable({
+  title,
+  entries,
+  showRssi,
+  bare,
+}: {
+  title: string;
+  entries: ActivityEntry[];
+  showRssi?: boolean;
+  /** Skip the outer .panel/.panel-header chrome — used inside the dashboard grid, which supplies its own widget header. */
+  bare?: boolean;
+}) {
+  const content = (
+    <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-[color:var(--border-subtle)] text-[color:var(--text-muted)]">
@@ -58,7 +67,15 @@ export function ActivityTable({ title, entries, showRssi }: { title: string; ent
             )}
           </tbody>
         </table>
-      </div>
+    </div>
+  );
+
+  if (bare) return content;
+
+  return (
+    <div className="panel mb-4">
+      <div className="panel-header">{title}</div>
+      {content}
     </div>
   );
 }
