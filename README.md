@@ -15,7 +15,12 @@ Express 5, React 19, React Router 8, Vite 8, Tailwind CSS 4, TypeScript 7.
   local dev off-device). DAPNET/time-server config and all admin-action routes (WiFi/SSH/power/firmware/calibration) are
   still mock/simulated (`server/src/simulator.ts`) so the UI stays fully interactive wherever it runs.
 - `client/` — React SPA (Vite): public Dashboard (mirrors the original screenshot) + an authenticated Admin section
-  (Configuration, Link Manager, WiFi, SSH Access, Live Logs, System Info, Firmware Upgrade, Calibration, Power).
+  (Configuration, Link Manager, WiFi, SSH Terminal, Live Logs, System Info, Firmware Upgrade, Calibration, Power).
+  Three selectable themes (Classic/Slate/Neon, picked via the header pill switcher, persisted to localStorage) —
+  not the original's `/etc/pistar-css.ini` custom-color editor, a deliberately different, simpler approach. Nearly
+  entirely CSS-only: every component reads color through `client/src/styles/index.css`'s custom properties, so
+  each theme is just a new set of variable values plus a couple of Neon-specific `.panel` overrides for the
+  glowing gradient-border look — no per-component changes needed.
 
 ## Running it
 

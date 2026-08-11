@@ -1,11 +1,16 @@
 import { create } from "zustand";
 
-type Theme = "light" | "dark";
+export type Theme = "classic" | "slate" | "neon";
+export const THEMES: { key: Theme; label: string }[] = [
+  { key: "classic", label: "Classic" },
+  { key: "slate", label: "Slate" },
+  { key: "neon", label: "Neon" },
+];
 
 function initialTheme(): Theme {
   const stored = localStorage.getItem("pistar-theme");
-  if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (stored === "classic" || stored === "slate" || stored === "neon") return stored;
+  return "classic";
 }
 
 function apply(theme: Theme) {
@@ -15,17 +20,16 @@ function apply(theme: Theme) {
 
 interface ThemeState {
   theme: Theme;
-  toggle: () => void;
+  setTheme: (theme: Theme) => void;
 }
 
-const initial = typeof window !== "undefined" ? initialTheme() : "light";
+const initial = typeof window !== "undefined" ? initialTheme() : "classic";
 if (typeof window !== "undefined") apply(initial);
 
-export const useThemeStore = create<ThemeState>((set, get) => ({
+export const useThemeStore = create<ThemeState>((set) => ({
   theme: initial,
-  toggle: () => {
-    const next = get().theme === "dark" ? "light" : "dark";
-    apply(next);
-    set({ theme: next });
+  setTheme: (theme) => {
+    apply(theme);
+    set({ theme });
   },
 }));

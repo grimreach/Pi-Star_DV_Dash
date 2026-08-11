@@ -1,7 +1,7 @@
 import { NavLink } from "react-router";
 import { useLiveStore } from "../store/live";
 import { useAuthStore } from "../store/auth";
-import { useThemeStore } from "../store/theme";
+import { THEMES, useThemeStore } from "../store/theme";
 
 export function Header() {
   const dashboard = useLiveStore((s) => s.dashboard);
@@ -9,7 +9,7 @@ export function Header() {
   const status = useAuthStore((s) => s.status);
   const logout = useAuthStore((s) => s.logout);
   const theme = useThemeStore((s) => s.theme);
-  const toggleTheme = useThemeStore((s) => s.toggle);
+  const setTheme = useThemeStore((s) => s.setTheme);
 
   const callsign = dashboard?.callsign ?? "…";
 
@@ -35,13 +35,27 @@ export function Header() {
             <NavLink to="/admin" className={({ isActive }) => (isActive ? "font-semibold text-brand-500" : "text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]")}>
               Admin
             </NavLink>
-            <button
-              onClick={toggleTheme}
-              className="rounded-md border border-[color:var(--border-subtle)] px-2 py-1 text-xs"
-              aria-label="Toggle color theme"
+            <div
+              role="radiogroup"
+              aria-label="Theme"
+              className="flex items-center gap-0.5 rounded-md border border-[color:var(--border-subtle)] p-0.5"
             >
-              {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
-            </button>
+              {THEMES.map((t) => (
+                <button
+                  key={t.key}
+                  role="radio"
+                  aria-checked={theme === t.key}
+                  onClick={() => setTheme(t.key)}
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                    theme === t.key
+                      ? "bg-brand-500 text-white"
+                      : "text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
             {status === "authenticated" ? (
               <button onClick={() => logout()} className="rounded-md bg-brand-500 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-600">
                 Log out

@@ -18,7 +18,21 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-:root {
+/*
+ * Three named themes (Classic / Slate / Neon), not a light/dark binary —
+ * each a complete, deliberately distinct visual identity. Selected via
+ * data-theme on <html>, defaulting to Classic. Every component already
+ * reads colors through these custom properties (--bg-app, --bg-surface,
+ * --bg-panel-header, --text-primary, --text-muted, --border-subtle) plus
+ * the Tailwind --color-brand-500, --color-ok-500 and --color-off-500 tokens
+ * above — which, in Tailwind v4, compile to `var(--color-brand-500)`
+ * etc. rather than hardcoded values, so overriding them per [data-theme]
+ * re-themes every bg-brand-500/text-brand-500/border-brand-500 utility
+ * across the whole app with zero component changes.
+ */
+
+:root,
+:root[data-theme="classic"] {
   color-scheme: light;
   --bg-app: #eef1f5;
   --bg-surface: #ffffff;
@@ -26,28 +40,41 @@
   --text-primary: #1c2126;
   --text-muted: #5b6470;
   --border-subtle: #dde2e8;
+  --color-brand-500: #c0392b;
+  --color-brand-600: #a43024;
+  --color-ok-500: #2ecc71;
+  --color-off-500: #7f8c8d;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="slate"] {
   color-scheme: dark;
-  --bg-app: #14171c;
-  --bg-surface: #1c2128;
-  --bg-panel-header: var(--color-brand-600);
-  --text-primary: #eef1f5;
-  --text-muted: #98a2ae;
-  --border-subtle: #2b323c;
+  --bg-app: #0f172a;
+  --bg-surface: #1a2436;
+  --bg-panel-header: #334155;
+  --text-primary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-subtle: #2d3b4f;
+  --color-brand-500: #7ba7d1;
+  --color-brand-600: #5f8bb8;
+  --color-ok-500: #2dd4bf;
+  --color-off-500: #64748b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg-app: #14171c;
-    --bg-surface: #1c2128;
-    --bg-panel-header: var(--color-brand-600);
-    --text-primary: #eef1f5;
-    --text-muted: #98a2ae;
-    --border-subtle: #2b323c;
-  }
+:root[data-theme="neon"] {
+  color-scheme: dark;
+  --bg-app: #0a0e1a;
+  --bg-surface: #131829;
+  --bg-panel-header: linear-gradient(90deg, #22d3ee, #a855f7);
+  --text-primary: #e8ecf7;
+  --text-muted: #8b93b8;
+  --border-subtle: #262c47;
+  --color-brand-500: #a855f7;
+  --color-brand-600: #9333ea;
+  --color-ok-500: #34d399;
+  --color-off-500: #6b7280;
+  --neon-glow-a: #22d3ee;
+  --neon-glow-b: #a855f7;
+  --neon-glow-c: #f472b6;
 }
 
 html,
@@ -91,4 +118,22 @@ body {
 
 .mono {
   font-family: var(--font-mono);
+}
+
+/* Neon theme: glowing gradient-bordered panels, matching the reference's
+   stat-card look. Gradient border via the double-background-image trick
+   (inner solid fill + outer gradient, clipped to padding-box/border-box
+   respectively) rather than changing panel markup. */
+:root[data-theme="neon"] .panel {
+  border-color: transparent;
+  background-image:
+    linear-gradient(var(--bg-surface), var(--bg-surface)),
+    linear-gradient(135deg, var(--neon-glow-a), var(--neon-glow-b), var(--neon-glow-c));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 0 24px -8px rgba(168, 85, 247, 0.35);
+}
+
+:root[data-theme="neon"] .panel-header {
+  color: #0a0e1a;
 }
