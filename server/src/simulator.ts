@@ -4,9 +4,12 @@ import { store } from "./store.js";
 import { wsHub } from "./ws.js";
 
 /**
- * Simulates live radio traffic so the UI has something to react to
- * without a real modem. Replace with a real MMDVMHost.log tail on
- * deployment (see store.ts header).
+ * Simulates live radio traffic and log output so the UI has something to
+ * react to without a real modem. `startSystemInfoBroadcast` always runs
+ * (system stats aren't wired to real data yet — see README). The
+ * activity/log simulation in `startActivitySimulator` is only started
+ * when `activityFeed.ts`'s real MMDVM log tailer isn't available (e.g.
+ * local dev off-device) — see index.ts.
  */
 
 const CALLSIGNS = [
@@ -44,7 +47,15 @@ function randomEntry(mode: Mode, scope: "gateway" | "localRf"): ActivityEntry {
   return entry;
 }
 
-export function startSimulator() {
+export function startSystemInfoBroadcast() {
+  const systemInterval = setInterval(() => {
+    wsHub.broadcast({ type: "system:update", payload: store.systemInfo() });
+  }, 5000);
+
+  return () => clearInterval(systemInterval);
+}
+
+export function startActivitySimulator() {
   const interval = setInterval(() => {
     const enabled = store.enabledModes;
     if (enabled.length === 0) return;
@@ -64,10 +75,6 @@ export function startSimulator() {
     }, holdMs);
   }, 9000 + Math.random() * 6000);
 
-  const systemInterval = setInterval(() => {
-    wsHub.broadcast({ type: "system:update", payload: store.systemInfo() });
-  }, 5000);
-
   const logInterval = setInterval(() => {
     const line = randomLogLine();
     store.pushLog(line);
@@ -76,7 +83,6 @@ export function startSimulator() {
 
   return () => {
     clearInterval(interval);
-    clearInterval(systemInterval);
     clearInterval(logInterval);
   };
 }

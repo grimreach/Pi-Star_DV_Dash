@@ -16,7 +16,8 @@ import { powerRouter } from "./routes/power.js";
 import { sshRouter } from "./routes/ssh.js";
 import { systemRouter } from "./routes/system.js";
 import { wifiRouter } from "./routes/wifi.js";
-import { startSimulator } from "./simulator.js";
+import { startRealActivityFeed } from "./pistar/activityFeed.js";
+import { startActivitySimulator, startSystemInfoBroadcast } from "./simulator.js";
 import { wsHub } from "./ws.js";
 
 const PORT = Number(process.env.PORT ?? 4000);
@@ -96,14 +97,25 @@ httpServer.on("upgrade", (req, socket, head) => {
   }
 });
 
-const stopSimulator = startSimulator();
+const stopSystemInfo = startSystemInfoBroadcast();
+const stopRealActivityFeed = startRealActivityFeed();
+let stopActivitySimulator: (() => void) | null = null;
+if (stopRealActivityFeed) {
+  console.log("[activityFeed] real MMDVM log found — activity feed is live, not simulated");
+} else {
+  console.log("[activityFeed] no real MMDVM log found — falling back to simulated activity");
+  stopActivitySimulator = startActivitySimulator();
+}
+
 httpServer.listen(PORT, () => {
   console.log(`Pi-Star dashboard API listening on http://localhost:${PORT}`);
 });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
-    stopSimulator();
+    stopSystemInfo();
+    stopRealActivityFeed?.();
+    stopActivitySimulator?.();
     httpServer.close(() => process.exit(0));
   });
 }
