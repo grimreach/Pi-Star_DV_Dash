@@ -10,7 +10,6 @@ import type {
   NetworkLink,
   NetworkStatus,
   RadioInfo,
-  SshAccessState,
   SystemInfo,
   WifiNetwork,
 } from "@pistar/shared";
@@ -265,8 +264,6 @@ class DataStore {
     { ssid: "ShackNet-Guest", signalPercent: 61, secured: true, connected: false },
     { ssid: "NeighborWifi", signalPercent: 34, secured: true, connected: false },
   ];
-
-  sshAccess: SshAccessState = { enabled: false };
 
   firmware = {
     inProgress: false,

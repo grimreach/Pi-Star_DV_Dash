@@ -247,9 +247,6 @@ export interface WifiNetwork {
   connected: boolean;
 }
 
-export interface SshAccessState {
-  enabled: boolean;
-}
 
 export interface FirmwareUpgradeState {
   inProgress: boolean;

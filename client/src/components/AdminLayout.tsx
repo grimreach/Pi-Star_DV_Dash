@@ -6,7 +6,7 @@ const NAV = [
   { to: "/admin/configuration", label: "Configuration" },
   { to: "/admin/links", label: "Link Manager" },
   { to: "/admin/wifi", label: "WiFi" },
-  { to: "/admin/ssh", label: "SSH Access" },
+  { to: "/admin/ssh", label: "SSH Terminal" },
   { to: "/admin/logs", label: "Live Logs" },
   { to: "/admin/system", label: "System Info" },
   { to: "/admin/firmware", label: "Firmware Upgrade" },

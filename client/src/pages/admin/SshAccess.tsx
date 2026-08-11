@@ -1,30 +1,46 @@
-import type { SshAccessState } from "@pistar/shared";
 import { useQuery } from "@tanstack/react-query";
 import { SectionCard } from "../../components/admin/Field";
 import { api } from "../../lib/api";
 
+// The original Pi-Star dashboard's "SSH Access" page isn't an sshd
+// enable/disable toggle — it's an embedded ShellInABox web terminal
+// (a browser-based shell on a separate port, no SSH client needed).
+// Port comes from the real /etc/default/shellinabox on the device.
 export function SshAccess() {
-  const query = useQuery({ queryKey: ["ssh"], queryFn: () => api.get<SshAccessState>("/ssh"), refetchInterval: 10_000 });
+  const query = useQuery({
+    queryKey: ["shellinabox"],
+    queryFn: () => api.get<{ port: number | null }>("/system/shellinabox"),
+  });
+
+  const port = query.data?.port;
+  const host = window.location.hostname;
+  const terminalUrl = port ? `http://${host}:${port}` : null;
 
   return (
-    <SectionCard title="SSH Access">
-      <p className="mb-3 text-xs text-[color:var(--text-muted)]">
-        Mirrors admin/expert/ssh_access.php. Status below is read from the real device
-        (<code>systemctl is-enabled ssh</code>, no elevated access needed) — toggling it isn't wired up yet, since
-        that needs a new scoped sudo grant, same as the Configuration page's write support.
-      </p>
-      <div className="flex items-center gap-3">
-        <span
-          className={`inline-block h-2.5 w-2.5 rounded-full ${query.data?.enabled ? "bg-ok-500" : "bg-off-500"}`}
-        />
-        <span className="text-sm">
-          {query.data === undefined
-            ? "Checking…"
-            : query.data.enabled
-              ? "SSH access is enabled"
-              : "SSH access is disabled"}
-        </span>
-      </div>
+    <SectionCard title="SSH Terminal">
+      {query.isLoading ? (
+        <p className="text-sm text-[color:var(--text-muted)]">Checking for ShellInABox…</p>
+      ) : terminalUrl ? (
+        <>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs text-[color:var(--text-muted)]">
+              Embedded ShellInABox terminal, same as the original dashboard's SSH page.
+            </p>
+            <a href={terminalUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-500 hover:underline">
+              Open fullscreen ↗
+            </a>
+          </div>
+          <iframe
+            src={terminalUrl}
+            title="SSH Terminal"
+            className="h-[600px] w-full rounded-md border border-[color:var(--border-subtle)] bg-black"
+          />
+        </>
+      ) : (
+        <p className="text-sm text-[color:var(--text-muted)]">
+          ShellInABox isn't available on this system (no real device detected, or it isn't installed/running).
+        </p>
+      )}
     </SectionCard>
   );
 }

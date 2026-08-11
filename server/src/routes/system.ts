@@ -3,12 +3,17 @@ import { Router } from "express";
 import { requireAuth } from "../auth.js";
 import { store } from "../store.js";
 import { restartMmdvmHost } from "../pistar/configWriter.js";
+import { readShellInABoxPort } from "../pistar/shellinabox.js";
 
 export const systemRouter = Router();
 systemRouter.use(requireAuth);
 
 systemRouter.get("/", (_req, res) => {
   res.json(store.systemInfo());
+});
+
+systemRouter.get("/shellinabox", (_req, res) => {
+  res.json({ port: readShellInABoxPort() });
 });
 
 const MMDVMHOST_CONFIG_PATH = process.env.MMDVMHOST_CONFIG_PATH ?? "/etc/mmdvmhost";
