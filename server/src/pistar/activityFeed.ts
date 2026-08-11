@@ -3,6 +3,7 @@ import { store } from "../store.js";
 import { wsHub } from "../ws.js";
 import { FileTailer } from "./logTail.js";
 import { MmdvmLogParser } from "./mmdvmLog.js";
+import { recordLogLineForDmrLogin } from "./networkHealth.js";
 
 /**
  * Wires the real MMDVM log into the dashboard: tails today's log file,
@@ -31,6 +32,7 @@ export function startRealActivityFeed(): (() => void) | null {
   function handleLine(line: string) {
     store.pushLog(line);
     wsHub.broadcast({ type: "log:line", payload: { timestamp: Date.now(), text: line } });
+    recordLogLineForDmrLogin(line);
 
     const entry = parser.feedLine(line);
     if (!entry) return;

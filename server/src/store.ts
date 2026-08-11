@@ -109,6 +109,11 @@ class DataStore {
   pistarVersion = "4.3.7";
 
   enabledModes: Mode[] = ["dstar", "dmr"];
+  // configuredNetworks: what /etc/mmdvmhost says should be connected.
+  // connectedNetworks: what's actually live right now (networkHealth.ts
+  // narrows this down from configuredNetworks via process/login checks
+  // when running on a real device) — starts equal to configuredNetworks.
+  configuredNetworks: NetworkLink[] = ["dstarNet", "dmrNet"];
   connectedNetworks: NetworkLink[] = ["dstarNet", "dmrNet"];
 
   radio: RadioInfo = {
@@ -326,6 +331,7 @@ class DataStore {
 
     this.callsign = derived.callsign;
     this.enabledModes = derived.enabledModes;
+    this.configuredNetworks = derived.connectedNetworks;
     this.connectedNetworks = derived.connectedNetworks;
     this.radio = { ...this.radio, ...derived.radio };
     this.dstar = { ...this.dstar, ...derived.dstar };

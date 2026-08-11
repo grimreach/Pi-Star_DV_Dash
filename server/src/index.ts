@@ -17,6 +17,7 @@ import { sshRouter } from "./routes/ssh.js";
 import { systemRouter } from "./routes/system.js";
 import { wifiRouter } from "./routes/wifi.js";
 import { startRealActivityFeed } from "./pistar/activityFeed.js";
+import { startNetworkHealthMonitor } from "./pistar/networkHealth.js";
 import { startActivitySimulator, startSystemInfoBroadcast } from "./simulator.js";
 import { wsHub } from "./ws.js";
 
@@ -100,8 +101,10 @@ httpServer.on("upgrade", (req, socket, head) => {
 const stopSystemInfo = startSystemInfoBroadcast();
 const stopRealActivityFeed = startRealActivityFeed();
 let stopActivitySimulator: (() => void) | null = null;
+let stopNetworkHealth: (() => void) | null = null;
 if (stopRealActivityFeed) {
   console.log("[activityFeed] real MMDVM log found — activity feed is live, not simulated");
+  stopNetworkHealth = startNetworkHealthMonitor();
 } else {
   console.log("[activityFeed] no real MMDVM log found — falling back to simulated activity");
   stopActivitySimulator = startActivitySimulator();
@@ -116,6 +119,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     stopSystemInfo();
     stopRealActivityFeed?.();
     stopActivitySimulator?.();
+    stopNetworkHealth?.();
     httpServer.close(() => process.exit(0));
   });
 }
