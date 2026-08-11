@@ -4,12 +4,13 @@
 # rules use for www-data (see PISTAR_DASH_MOUNT / PISTAR_DASH_INSTALL /
 # PISTAR_DASH_SYSTEMCTL in the stock Pi-Star sudoers), scoped down to just
 # what this app currently needs: writing /etc/mmdvmhost, restarting
-# MMDVMHost, WiFi scanning, and WiFi connect/disconnect via add_network/
-# set_network/enable_network/disable_network/remove_network/save_config.
-# Does not grant broad root access, and deliberately excludes ifdown/ifup
-# and wpa_cli reconfigure/select_network — select_network in particular
-# would disable every other configured network profile, which could break
-# a working connection if a new one fails (see wifiConnect.ts).
+# MMDVMHost, WiFi scanning, WiFi connect/disconnect via add_network/
+# set_network/enable_network/disable_network/remove_network/save_config,
+# and power (reboot/shutdown). Does not grant broad root access, and
+# deliberately excludes ifdown/ifup and wpa_cli reconfigure/select_network
+# — select_network in particular would disable every other configured
+# network profile, which could break a working connection if a new one
+# fails (see wifiConnect.ts).
 #
 # Install: copy this file to /etc/sudoers.d/040-pistar-dashboard-node,
 # then `sudo chmod 440` it and `sudo visudo -c` to validate syntax before
@@ -17,11 +18,12 @@
 #
 # Paths below (/usr/bin/mount, /usr/bin/install, /usr/bin/systemctl,
 # /sbin/wpa_cli) were verified against a real Pi-Star device (mount/
-# install/systemctl via `which`; wpa_cli's path matches the stock Pi-Star
-# sudoers rules for www-data) — confirm they match yours before
+# install/systemctl via `which`; wpa_cli/reboot/shutdown match the stock
+# Pi-Star sudoers rules for www-data) — confirm they match yours before
 # installing; adjust if not (sudoers matches the literal string invoked,
 # so it must match exactly what the corresponding server/src/pistar/*.ts
-# file passes to execFile).
+# file passes to execFile). /bin/sync is assumed at its standard path —
+# verify with `which sync` if the power action fails.
 
 Defaults!PISTAR_DASH_NODE_ALL !requiretty
 
@@ -46,7 +48,13 @@ Cmnd_Alias PISTAR_DASH_NODE_WIFI = \
     /sbin/wpa_cli -i wlan0 remove_network *, \
     /sbin/wpa_cli -i wlan0 save_config
 
+Cmnd_Alias PISTAR_DASH_NODE_POWER = \
+    /bin/sync, \
+    /sbin/reboot, \
+    /sbin/shutdown -h now
+
 Cmnd_Alias PISTAR_DASH_NODE_ALL = \
-    PISTAR_DASH_NODE_MOUNT, PISTAR_DASH_NODE_INSTALL, PISTAR_DASH_NODE_SYSTEMCTL, PISTAR_DASH_NODE_WIFI
+    PISTAR_DASH_NODE_MOUNT, PISTAR_DASH_NODE_INSTALL, PISTAR_DASH_NODE_SYSTEMCTL, PISTAR_DASH_NODE_WIFI, \
+    PISTAR_DASH_NODE_POWER
 
 pi-star ALL=(root) NOPASSWD: PISTAR_DASH_NODE_ALL
