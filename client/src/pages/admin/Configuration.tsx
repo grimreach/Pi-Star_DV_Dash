@@ -53,8 +53,17 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
 
   useEffect(() => {
     setDraft(config[section] as unknown as Record<string, unknown>);
-    setLastResult(null);
   }, [section, config]);
+
+  // Deliberately NOT depending on `config` here — a successful save
+  // invalidates the config query, which refetches and gives a new
+  // `config` object reference. If this effect also reset on `config`
+  // changes, it would immediately wipe out the "Restart to apply" button
+  // that the save's onSuccess just set, before the user could click it.
+  useEffect(() => {
+    setLastResult(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
 
   const mutation = useMutation({
     mutationFn: () => api.patch<ConfigPatchResponse>(`/config/${section}`, draft),
