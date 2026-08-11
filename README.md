@@ -40,6 +40,47 @@ npm run build
 NODE_ENV=production node server/dist/index.js
 ```
 
+## Deploying to a real Pi-Star device
+
+1. **Install Node 22 on the Pi.** NodeSource's apt repo doesn't support 32-bit ARM (`armhf` — what a 32-bit
+   Raspberry Pi OS image reports, common on Pi 3/Zero 2 W setups), even though Node itself does. Download the
+   official tarball directly instead:
+   ```
+   curl -fsSL -o node22.tar.xz https://nodejs.org/dist/latest-v22.x/node-v22.23.2-linux-armv7l.tar.xz
+   sudo mkdir -p /usr/local/lib/nodejs
+   sudo tar -xJf node22.tar.xz -C /usr/local/lib/nodejs
+   sudo ln -sf /usr/local/lib/nodejs/node-v22.23.2-linux-armv7l/bin/node /usr/local/bin/node
+   sudo ln -sf /usr/local/lib/nodejs/node-v22.23.2-linux-armv7l/bin/npm /usr/local/bin/npm
+   ```
+   (64-bit Pi OS can likely use NodeSource's `arm64` builds directly — check `uname -m` first.)
+
+2. **Clone, build.** Pi-Star's root filesystem is read-only by default (protects the SD card from an abrupt power
+   loss) — wrap any install/build/config step in `rpi-rw` / `rpi-ro`:
+   ```
+   rpi-rw
+   git clone -b node-react-rewrite https://github.com/grimreach/Pi-Star_DV_Dash.git pistar-dashboard
+   cd pistar-dashboard
+   npm install
+   npm run build
+   rpi-ro
+   ```
+
+3. **Run it as a persistent service** — see `deploy/systemd/pistar-dashboard-node.service` (install instructions in
+   that file's header comment). Runs on `127.0.0.1:8080`.
+
+4. **Config writes, power, WiFi, and calibration need one sudoers file** — `deploy/sudoers.d/040-pistar-dashboard-node`
+   (install instructions in that file's header comment; validate with `sudo visudo -c` before trusting it). Without
+   it, those features fall back to read-only/mock behavior rather than failing silently.
+
+5. **Side-by-side testing vs. full replacement** — run the service on `:8080` and try it alongside the untouched
+   PHP dashboard on `:80` first. Once you trust it, `deploy/nginx/pi-star` replaces the stock PHP-serving nginx
+   config with a reverse proxy to the Node app, letting you remove `php8.2-fpm` and the PHP dashboard code
+   entirely — see that file's header comment for exactly what changes and why (notably: it drops the nginx-level
+   `.htpasswd` auth in front of `/admin`, relying solely on the Node app's own session login, since the PHP-era
+   split between a server-routed public page and a server-routed admin page doesn't exist anymore — it's one SPA
+   with client-side routing and server-side API auth). **Back up `/var/www/dashboard` and `/etc/nginx` before doing
+   this** — the PHP removal step is not easily reversible without that backup.
+
 ## What's real vs. mocked
 
 This was scoped to fully replace the PHP app's UI and API surface, including the system-admin pages (WiFi, SSH,

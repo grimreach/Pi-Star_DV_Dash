@@ -1,0 +1,37 @@
+# Runs the built Node dashboard as a persistent service — survives reboots
+# and doesn't depend on an SSH session staying open. Listens on 127.0.0.1:8080;
+# nginx (see deploy/nginx/pi-star) reverse-proxies port 80 to it in a full
+# PHP-replacement deployment, or you can hit :8080 directly for side-by-side
+# testing alongside an untouched PHP dashboard on :80.
+#
+# Install (adjust WorkingDirectory/User to match your actual clone path and
+# Pi-Star username — check with `pwd` and `whoami` after cloning):
+#
+#   sudo cp deploy/systemd/pistar-dashboard-node.service /etc/systemd/system/
+#   sudo sed -i "s#__WORKDIR__#$(pwd)#; s#__USER__#$(whoami)#; s#__SECRET__#$(openssl rand -hex 32)#" \
+#       /etc/systemd/system/pistar-dashboard-node.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now pistar-dashboard-node
+#
+# ExecStart below assumes /usr/local/bin/node (true if you installed Node
+# from the official armv7l tarball, per the README — needed on 32-bit
+# Raspberry Pi OS since NodeSource's apt repo doesn't support armhf). If
+# you installed Node a different way, run `which node` and adjust the path
+# — it must be absolute, since systemd services don't get your shell's PATH.
+
+[Unit]
+Description=Pi-Star Dashboard (Node.js/React)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__WORKDIR__
+Environment=NODE_ENV=production
+Environment=PORT=8080
+Environment=SESSION_SECRET=__SECRET__
+ExecStart=/usr/local/bin/node server/dist/index.js
+Restart=on-failure
+User=__USER__
+
+[Install]
+WantedBy=multi-user.target

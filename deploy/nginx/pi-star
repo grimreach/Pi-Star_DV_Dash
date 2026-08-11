@@ -1,0 +1,88 @@
+# Replaces the stock Pi-Star nginx site config (which fastcgi_pass'd .php
+# requests to php8.2-fpm) with a reverse proxy to the Node dashboard, which
+# runs as its own systemd service (pistar-dashboard-node) on 127.0.0.1:8080.
+#
+# Install: overwrite /etc/nginx/sites-available/pi-star with this file (that
+# symlink already exists in /etc/nginx/sites-enabled/ on a stock Pi-Star
+# image — no new site needs enabling). Requires `rpi-rw`.
+#
+#   sudo cp deploy/nginx/pi-star /etc/nginx/sites-available/pi-star
+#   sudo nginx -t
+#   sudo systemctl reload nginx
+#
+# Two server blocks, matching the original's shape:
+#   - listen 192.168.50.1:80  — AP-mode setup access (192.168.50.1 is the
+#     Pi's own hotspot gateway IP when broadcasting its own WiFi AP).
+#   - listen 80 default_server — normal LAN access (Ethernet or client-mode
+#     WiFi), what you hit day-to-day as pi-star.local or its LAN IP.
+#
+# Deliberately NOT ported from the original: the /admin location's PHP-
+# specific auth_basic (.htpasswd) / IP-restriction blocks. The Node app is a
+# single-process SPA with its own client-side routing and its own
+# session-based admin login (bcrypt, rate-limited) enforced server-side per
+# API route — nginx can't meaningfully gate "/admin" as a separate path
+# anymore (it's just React Router, not a distinct server path), and keeping
+# a Basic Auth prompt in front of it would just produce a confusing double
+# login. This is an intentional reduction from two auth layers to one,
+# decided explicitly rather than silently.
+#
+# The separate captive-portal site (redirects connectivity-check hostnames
+# to 192.168.50.1/index.php) is untouched by this file and needs no changes
+# — the Node app's catch-all route serves the SPA shell for any non-API
+# path, including the literal /index.php the redirects point at.
+
+server {
+        listen 192.168.50.1:80;
+
+        location /ws {
+                proxy_pass http://127.0.0.1:8080;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_read_timeout 3600s;
+        }
+
+        location / {
+                proxy_pass http://127.0.0.1:8080;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location ~ /\.git {
+                deny all;
+        }
+
+        include /etc/nginx/default.d/security.conf;
+}
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+
+        location /ws {
+                proxy_pass http://127.0.0.1:8080;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_read_timeout 3600s;
+        }
+
+        location / {
+                proxy_pass http://127.0.0.1:8080;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location ~ /\.git {
+                deny all;
+        }
+
+        include /etc/nginx/default.d/security.conf;
+}
