@@ -56,7 +56,7 @@ swap, not a rewrite:
 | SSH toggle | `server/src/routes/ssh.ts` | Still mock — needs `systemctl enable/disable ssh`. |
 | Firmware upgrade | `server/src/routes/firmware.ts` | Still mock — needs the real modem flashing tool, streaming its output instead of the simulated step list. |
 | Calibration | `server/src/routes/calibration.ts` | Still mock — needs MMDVMHost's calibration mode + real RSSI readback. |
-| System info | `server/src/store.ts#systemInfo()` | Still mock — needs `/proc`, `vcgencmd measure_temp`, `df`, etc. |
+| System info | `server/src/pistar/systemInfo.ts` | **Real** — uptime/load/memory via Node's `os` module, disk via `fs.statfsSync`, CPU temp via `/sys/class/thermal/thermal_zone0/temp` (no `vcgencmd`, no shelling out, no sudo needed). Falls back to mock on non-Linux hosts. |
 
 Auth is a simple session (default `admin` / `pi-star`, changeable from the Admin Overview page) — swap in
 Pi-Star's real credential store if you want continuity with existing installs.

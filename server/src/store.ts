@@ -15,6 +15,7 @@ import type {
   WifiNetwork,
 } from "@pistar/shared";
 import { readMmdvmHostConfig } from "./pistar/mmdvmConfig.js";
+import { readRealSystemInfo } from "./pistar/systemInfo.js";
 
 /**
  * In-memory data layer standing in for Pi-Star's real system integration
@@ -281,18 +282,22 @@ class DataStore {
   bootTime = Date.now();
 
   systemInfo(): SystemInfo {
-    return {
-      hostname: this.hostname,
-      pistarVersion: this.pistarVersion,
-      dashboardVersion: this.dashboardVersion,
+    const real = readRealSystemInfo();
+    const base = real ?? {
       uptimeSeconds: Math.floor((Date.now() - this.bootTime) / 1000),
       cpuTemperatureC: 46 + Math.random() * 4,
-      cpuLoad: [0.12, 0.18, 0.21],
+      cpuLoad: [0.12, 0.18, 0.21] as [number, number, number],
       memoryUsedMb: 210,
       memoryTotalMb: 512,
       diskUsedMb: 2100,
       diskTotalMb: 7400,
       ipAddress: "192.168.1.42",
+    };
+    return {
+      hostname: this.hostname,
+      pistarVersion: this.pistarVersion,
+      dashboardVersion: this.dashboardVersion,
+      ...base,
     };
   }
 
