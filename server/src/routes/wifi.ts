@@ -2,12 +2,18 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../auth.js";
 import { store } from "../store.js";
+import { scanWifiNetworks } from "../pistar/wifiScan.js";
 
 export const wifiRouter = Router();
 wifiRouter.use(requireAuth);
 
-wifiRouter.get("/", (_req, res) => {
-  res.json(store.wifiNetworks);
+// Real scan when the sudo grant + wlan0 are available (takes ~3s — wpa_cli's
+// scan is asynchronous, so this waits for results the same way the original
+// PHP dashboard's own scan flow does). Falls back to the mock list otherwise.
+// Connect/disconnect below stay mock deliberately — see wifiScan.ts.
+wifiRouter.get("/", async (_req, res) => {
+  const real = await scanWifiNetworks();
+  res.json(real ?? store.wifiNetworks);
 });
 
 const connectSchema = z.object({ ssid: z.string().min(1), password: z.string().optional() });
