@@ -59,6 +59,7 @@ export function buildMmdvmHostEdits(section: ConfigSection, config: FullConfig):
         { section: "DMR Network", key: "Slot1", value: bool01(config.dmrGateway.ts1Enabled) },
         { section: "DMR Network", key: "Slot2", value: bool01(config.dmrGateway.ts2Enabled) },
         { section: "DMR Network", key: "Address", value: config.dmrGateway.master },
+        { section: "DMR Network", key: "Password", value: config.dmrGateway.networkPassword },
       ];
 
     case "dstarRepeater": {

@@ -104,6 +104,7 @@ export function parseMmdvmHostConfig(text: string): ParsedMmdvmHost {
     ts1Enabled: slot1Routed,
     ts2Enabled: slot2Routed,
     master: dmrMasterAddress,
+    networkPassword: iniString(ini, "DMR Network", "Password"),
     bmApiKey: "",
   };
 

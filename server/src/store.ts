@@ -171,6 +171,7 @@ class DataStore {
       ts1Enabled: false,
       ts2Enabled: true,
       master: "BM 3102 United States",
+      networkPassword: "",
       bmApiKey: "",
     },
     dstarRepeater: {

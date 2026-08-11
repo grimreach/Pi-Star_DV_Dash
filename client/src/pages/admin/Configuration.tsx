@@ -213,6 +213,17 @@ function DmrFields({ draft, set }: { draft: Record<string, unknown>; set: Setter
       <FieldRow label="Master">
         <TextInput value={String(draft.master ?? "")} onChange={(e) => set("master", e.target.value)} />
       </FieldRow>
+      <FieldRow label="Network Password">
+        <TextInput
+          type="password"
+          value={String(draft.networkPassword ?? "")}
+          onChange={(e) => set("networkPassword", e.target.value)}
+        />
+      </FieldRow>
+      <p className="mb-2 -mt-1 text-xs text-[color:var(--text-muted)]">
+        The DMR network login password (e.g. your hotspot password from self-care.brandmeister.network) — not the
+        BrandMeister API key below.
+      </p>
       <FieldRow label="BrandMeister API Key">
         <TextInput type="password" value={String(draft.bmApiKey ?? "")} onChange={(e) => set("bmApiKey", e.target.value)} />
       </FieldRow>

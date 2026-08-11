@@ -130,6 +130,11 @@ export interface DmrGatewayConfig {
   ts1Enabled: boolean;
   ts2Enabled: boolean;
   master: string;
+  // [DMR Network] Password in /etc/mmdvmhost — the actual login password
+  // for the DMR network connection (e.g. your BrandMeister hotspot
+  // password from self-care.brandmeister.network). Distinct from
+  // bmApiKey below, which is BrandMeister's separate REST API key.
+  networkPassword: string;
   bmApiKey: string;
 }
 
