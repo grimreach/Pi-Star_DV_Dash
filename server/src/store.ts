@@ -14,6 +14,7 @@ import type {
   SystemInfo,
   WifiNetwork,
 } from "@pistar/shared";
+import { readMmdvmHostConfig } from "./pistar/mmdvmConfig.js";
 
 /**
  * In-memory data layer standing in for Pi-Star's real system integration
@@ -309,6 +310,40 @@ class DataStore {
   pushActivity(scope: "gateway" | "localRf", entry: ActivityEntry) {
     const key = scope === "gateway" ? "gateway" : "localRf";
     this.activity[key] = [entry, ...this.activity[key]].slice(0, 50);
+  }
+
+  constructor() {
+    this.loadRealConfigIfAvailable();
+  }
+
+  private loadRealConfigIfAvailable() {
+    const path = process.env.MMDVMHOST_CONFIG_PATH ?? "/etc/mmdvmhost";
+    const parsed = readMmdvmHostConfig(path);
+    if (!parsed) return;
+
+    console.log(`Loaded real MMDVMHost config from ${path}`);
+    const { config, derived } = parsed;
+
+    this.callsign = derived.callsign;
+    this.enabledModes = derived.enabledModes;
+    this.connectedNetworks = derived.connectedNetworks;
+    this.radio = { ...this.radio, ...derived.radio };
+    this.dstar = { ...this.dstar, ...derived.dstar };
+    this.dmr = { ...this.dmr, ...derived.dmr };
+
+    // dapnetGateway and timeServer aren't in this file (separate Pi-Star
+    // config files, not read yet) — left on the mock seed intentionally.
+    this.config = {
+      ...this.config,
+      general: config.general,
+      mmdvmHost: config.mmdvmHost,
+      dmrGateway: config.dmrGateway,
+      dstarRepeater: config.dstarRepeater,
+      ysfGateway: config.ysfGateway,
+      p25Gateway: config.p25Gateway,
+      nxdnGateway: config.nxdnGateway,
+      m17Gateway: config.m17Gateway,
+    };
   }
 }
 

@@ -7,9 +7,11 @@ Express 5, React 19, React Router 8, Vite 8, Tailwind CSS 4, TypeScript 7.
 ## Structure (npm workspaces)
 
 - `shared/` — TypeScript types shared by server and client (dashboard state, config, activity log, WS events).
-- `server/` — Express API + WebSocket server. All data currently comes from an **in-memory mock layer**
-  (`server/src/store.ts` + `server/src/simulator.ts`) that generates realistic-looking activity so the UI is fully
-  interactive out of the box.
+- `server/` — Express API + WebSocket server. Config (general/mmdvmHost/dmrGateway/dstarRepeater/ysf/p25/nxdn/m17)
+  is read from the real `/etc/mmdvmhost` when present (`server/src/pistar/mmdvmConfig.ts`), falling back to an
+  in-memory mock seed otherwise. Activity, DAPNET/time-server config, and all admin-action routes (WiFi/SSH/power/
+  firmware/calibration) are still mock/simulated (`server/src/simulator.ts`) so the UI stays fully interactive
+  wherever it runs.
 - `client/` — React SPA (Vite): public Dashboard (mirrors the original screenshot) + an authenticated Admin section
   (Configuration, Link Manager, WiFi, SSH Access, Live Logs, System Info, Firmware Upgrade, Calibration, Power).
 
@@ -38,16 +40,20 @@ power, firmware, calibration) — but it was built and tested without access to 
 that would touch the real system on a Pi is isolated behind a small, clearly-commented seam so it's a targeted
 swap, not a rewrite:
 
-| Area | File | What to change for real hardware |
+| Area | File | Status |
 |---|---|---|
-| Config storage | `server/src/store.ts` | Read/write `/etc/mmdvmhost`, `/etc/dstarrepeater`, etc. instead of the in-memory `config` object |
-| Live activity | `server/src/simulator.ts` | Replace with an MMDVMHost.log tail (inotify) feeding the same `ActivityEntry` shape |
-| Power | `server/src/routes/power.ts` | Currently a no-op that only logs intent — wire to `sudo shutdown -r/-h now` deliberately and carefully |
-| WiFi | `server/src/routes/wifi.ts` | Wire to `wpa_cli` scan/connect |
-| SSH toggle | `server/src/routes/ssh.ts` | Wire to `systemctl enable/disable ssh` |
-| Firmware upgrade | `server/src/routes/firmware.ts` | Wire to the real modem flashing tool, streaming its output instead of the simulated step list |
-| Calibration | `server/src/routes/calibration.ts` | Wire to MMDVMHost's calibration mode + real RSSI readback |
-| System info | `server/src/store.ts#systemInfo()` | Read `/proc`, `vcgencmd measure_temp`, `df`, etc. |
+| Config (read) | `server/src/pistar/mmdvmConfig.ts` | **Real** — parses `/etc/mmdvmhost` (path overridable via `MMDVMHOST_CONFIG_PATH`), verified against a live Pi-Star device. `Enable=1` reflects *configured* state, not live connection health — see caveat below. |
+| Config (write) | `server/src/routes/config.ts` | Still mock — `PATCH` only updates the in-memory store, doesn't write `/etc/mmdvmhost` back or restart MMDVMHost. Needed before Configuration-editor saves affect the real device. |
+| DAPNET / time server config | `server/src/store.ts` | Still mock — live in separate Pi-Star config files not read yet. |
+| DMR per-slot talkgroup routing | `server/src/pistar/mmdvmConfig.ts` | Approximated from `[DMR Network] Slot1/Slot2` (which slot that network entry carries) rather than true per-slot/per-talkgroup state, which lives in `DMRGateway.ini` (not read). |
+| Live activity | `server/src/simulator.ts` | Still simulated — real MMDVMHost/ircDDBGateway log line formats haven't been confirmed against actual call traffic yet (only startup/config-reload log lines seen so far). |
+| Live network connection status | `server/src/store.ts` (`connectedNetworks`) | Derived from config `Enable` flags, not actual login/connection state — a network can show "connected" while its login is actually failing (seen live: BrandMeister rejecting a stale DMR ID). Needs the log tailer to fix. |
+| Power | `server/src/routes/power.ts` | Still mock — a no-op that only logs intent. Needs `sudo shutdown -r/-h now`, wired deliberately and carefully. |
+| WiFi | `server/src/routes/wifi.ts` | Still mock — needs `wpa_cli` scan/connect. |
+| SSH toggle | `server/src/routes/ssh.ts` | Still mock — needs `systemctl enable/disable ssh`. |
+| Firmware upgrade | `server/src/routes/firmware.ts` | Still mock — needs the real modem flashing tool, streaming its output instead of the simulated step list. |
+| Calibration | `server/src/routes/calibration.ts` | Still mock — needs MMDVMHost's calibration mode + real RSSI readback. |
+| System info | `server/src/store.ts#systemInfo()` | Still mock — needs `/proc`, `vcgencmd measure_temp`, `df`, etc. |
 
 Auth is a simple session (default `admin` / `pi-star`, changeable from the Admin Overview page) — swap in
 Pi-Star's real credential store if you want continuity with existing installs.
