@@ -18,7 +18,8 @@ const execFileAsync = promisify(execFile);
 
 const IFACE = process.env.WIFI_IFACE ?? "wlan0";
 
-async function runWpaCli(args: string[]): Promise<string | null> {
+/** Exported for wifiConnect.ts to reuse the same sudo-wrapped invocation. */
+export async function runWpaCli(args: string[]): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync("sudo", ["/sbin/wpa_cli", "-i", IFACE, ...args], { timeout: 5000 });
     return stdout;

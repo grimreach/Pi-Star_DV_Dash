@@ -4,11 +4,12 @@
 # rules use for www-data (see PISTAR_DASH_MOUNT / PISTAR_DASH_INSTALL /
 # PISTAR_DASH_SYSTEMCTL in the stock Pi-Star sudoers), scoped down to just
 # what this app currently needs: writing /etc/mmdvmhost, restarting
-# MMDVMHost, and read-only WiFi scanning. Does not grant broad root
-# access, and deliberately excludes anything that could disrupt network
-# connectivity (ifdown/ifup, wpa_cli reconfigure) or change WiFi config —
-# actually connecting to a network is a separate decision, not covered
-# here.
+# MMDVMHost, WiFi scanning, and WiFi connect/disconnect via add_network/
+# set_network/enable_network/disable_network/remove_network/save_config.
+# Does not grant broad root access, and deliberately excludes ifdown/ifup
+# and wpa_cli reconfigure/select_network — select_network in particular
+# would disable every other configured network profile, which could break
+# a working connection if a new one fails (see wifiConnect.ts).
 #
 # Install: copy this file to /etc/sudoers.d/040-pistar-dashboard-node,
 # then `sudo chmod 440` it and `sudo visudo -c` to validate syntax before
@@ -37,7 +38,13 @@ Cmnd_Alias PISTAR_DASH_NODE_SYSTEMCTL = \
 Cmnd_Alias PISTAR_DASH_NODE_WIFI = \
     /sbin/wpa_cli -i wlan0 scan, \
     /sbin/wpa_cli -i wlan0 scan_results, \
-    /sbin/wpa_cli -i wlan0 status
+    /sbin/wpa_cli -i wlan0 status, \
+    /sbin/wpa_cli -i wlan0 add_network, \
+    /sbin/wpa_cli -i wlan0 set_network *, \
+    /sbin/wpa_cli -i wlan0 enable_network *, \
+    /sbin/wpa_cli -i wlan0 disable_network *, \
+    /sbin/wpa_cli -i wlan0 remove_network *, \
+    /sbin/wpa_cli -i wlan0 save_config
 
 Cmnd_Alias PISTAR_DASH_NODE_ALL = \
     PISTAR_DASH_NODE_MOUNT, PISTAR_DASH_NODE_INSTALL, PISTAR_DASH_NODE_SYSTEMCTL, PISTAR_DASH_NODE_WIFI
