@@ -41,23 +41,32 @@ export function Configuration() {
   );
 }
 
+interface ConfigPatchResponse {
+  config: unknown;
+  real: { written: boolean; skipped?: string[]; error?: string };
+}
+
 function SectionForm({ section, config }: { section: ConfigSection; config: FullConfig }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Record<string, unknown>>(config[section] as unknown as Record<string, unknown>);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [lastResult, setLastResult] = useState<ConfigPatchResponse["real"] | null>(null);
 
   useEffect(() => {
     setDraft(config[section] as unknown as Record<string, unknown>);
-    setSavedAt(null);
+    setLastResult(null);
   }, [section, config]);
 
   const mutation = useMutation({
-    mutationFn: () => api.patch(`/config/${section}`, draft),
-    onSuccess: () => {
+    mutationFn: () => api.patch<ConfigPatchResponse>(`/config/${section}`, draft),
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["config"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      setSavedAt(Date.now());
+      setLastResult(data.real);
     },
+  });
+
+  const restartMutation = useMutation({
+    mutationFn: () => api.post<{ restarted: boolean; message?: string; error?: string }>("/system/mmdvmhost/restart"),
   });
 
   function set(key: string, value: unknown) {
@@ -68,7 +77,7 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
     <SectionCard
       title={TABS.find((t) => t.key === section)!.label}
       footer={
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
@@ -77,7 +86,26 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
             {mutation.isPending ? "Saving…" : "Save changes"}
           </button>
           {mutation.isError && <span className="text-sm text-brand-500">Save failed. Try again.</span>}
-          {savedAt && !mutation.isPending && <span className="text-sm text-ok-600">Saved.</span>}
+          {lastResult && !mutation.isPending && (
+            <SaveStatus result={lastResult} />
+          )}
+          {lastResult?.written && (
+            <button
+              onClick={() => restartMutation.mutate()}
+              disabled={restartMutation.isPending}
+              className="rounded-md border border-[color:var(--border-subtle)] px-3 py-1.5 text-xs font-semibold hover:border-brand-500 disabled:opacity-60"
+              title="Restart MMDVMHost to apply this change — interrupts any in-progress transmission"
+            >
+              {restartMutation.isPending ? "Restarting…" : "Restart MMDVMHost to apply"}
+            </button>
+          )}
+          {restartMutation.isSuccess && restartMutation.data.restarted && (
+            <span className="text-sm text-ok-600">Restarted.</span>
+          )}
+          {restartMutation.isSuccess && !restartMutation.data.restarted && (
+            <span className="text-sm text-[color:var(--text-muted)]">{restartMutation.data.message}</span>
+          )}
+          {restartMutation.isError && <span className="text-sm text-brand-500">Restart failed.</span>}
         </div>
       }
     >
@@ -264,4 +292,25 @@ function TimeServerFields({ draft, set }: { draft: Record<string, unknown>; set:
       </FieldRow>
     </>
   );
+}
+
+function SaveStatus({ result }: { result: ConfigPatchResponse["real"] }) {
+  if (result.error) {
+    return (
+      <span className="text-sm text-brand-500" title={result.error}>
+        Saved in-app, but writing to the device failed — see console/logs.
+      </span>
+    );
+  }
+  if (result.written) {
+    return (
+      <span className="text-sm text-ok-600">
+        Saved to /etc/mmdvmhost.
+        {result.skipped && result.skipped.length > 0 && (
+          <span className="text-[color:var(--text-muted)]"> ({result.skipped.length} field(s) not found in file)</span>
+        )}
+      </span>
+    );
+  }
+  return <span className="text-sm text-ok-600">Saved (in-memory only — no real device detected).</span>;
 }

@@ -1,0 +1,35 @@
+# Narrowly-scoped sudo permissions for the Node.js Pi-Star dashboard,
+# which runs as the `pi-star` user via systemd (see README's deployment
+# section). Mirrors the pattern the original PHP dashboard's own sudoers
+# rules use for www-data (see PISTAR_DASH_MOUNT / PISTAR_DASH_INSTALL /
+# PISTAR_DASH_SYSTEMCTL in the stock Pi-Star sudoers), scoped down to just
+# what this app currently needs: writing /etc/mmdvmhost and restarting
+# MMDVMHost. Does not grant broad root access.
+#
+# Install: copy this file to /etc/sudoers.d/040-pistar-dashboard-node,
+# then `sudo chmod 440` it and `sudo visudo -c` to validate syntax before
+# trusting it. Requires the root filesystem to be writable (`rpi-rw`).
+#
+# Paths below (/usr/bin/mount, /usr/bin/install, /usr/bin/systemctl) were
+# verified against a real Pi-Star device via `which` — confirm they match
+# yours before installing; adjust if not (Debian's usr-merge means these
+# are usually symlinked from /bin, but sudoers matches the literal string
+# invoked, so it must match exactly what server/src/pistar/configWriter.ts
+# passes to execFile).
+
+Defaults!PISTAR_DASH_NODE_ALL !requiretty
+
+Cmnd_Alias PISTAR_DASH_NODE_MOUNT = \
+    /usr/bin/mount -o remount\,rw /, \
+    /usr/bin/mount -o remount\,ro /
+
+Cmnd_Alias PISTAR_DASH_NODE_INSTALL = \
+    /usr/bin/install -m 644 -o root -g root /tmp/pistar-node-cw-*.mmdvmhost /etc/mmdvmhost
+
+Cmnd_Alias PISTAR_DASH_NODE_SYSTEMCTL = \
+    /usr/bin/systemctl restart mmdvmhost.service
+
+Cmnd_Alias PISTAR_DASH_NODE_ALL = \
+    PISTAR_DASH_NODE_MOUNT, PISTAR_DASH_NODE_INSTALL, PISTAR_DASH_NODE_SYSTEMCTL
+
+pi-star ALL=(root) NOPASSWD: PISTAR_DASH_NODE_ALL

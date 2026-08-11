@@ -45,7 +45,7 @@ swap, not a rewrite:
 | Area | File | Status |
 |---|---|---|
 | Config (read) | `server/src/pistar/mmdvmConfig.ts` | **Real** — parses `/etc/mmdvmhost` (path overridable via `MMDVMHOST_CONFIG_PATH`), verified against a live Pi-Star device. `Enable=1` reflects *configured* state, not live connection health — see caveat below. |
-| Config (write) | `server/src/routes/config.ts` | Still mock — `PATCH` only updates the in-memory store, doesn't write `/etc/mmdvmhost` back or restart MMDVMHost. Needed before Configuration-editor saves affect the real device. |
+| Config (write) | `server/src/pistar/configWriter.ts`, `mmdvmConfigWrite.ts` | **Real**, requires one-time setup — atomically writes the specific `[Section] key=value` lines back to `/etc/mmdvmhost` via a narrowly-scoped sudo rule (see "Config write setup" below). Section-*aware* editing (not a blind first-match-of-`key=` replace) — verified this matters, since `Enable` appears in ~20 sections. Restarting MMDVMHost to apply changes is a deliberately separate, explicit action in the UI, never automatic on save. |
 | DAPNET / time server config | `server/src/store.ts` | Still mock — live in separate Pi-Star config files not read yet. |
 | DMR per-slot talkgroup routing | `server/src/pistar/mmdvmConfig.ts` | Approximated from `[DMR Network] Slot1/Slot2` (which slot that network entry carries) rather than true per-slot/per-talkgroup state, which lives in `DMRGateway.ini` (not read). |
 | Live activity — D-Star | `server/src/pistar/mmdvmLog.ts`, `logTail.ts`, `activityFeed.ts` | **Real**, confirmed against live traffic — an actual RF+network D-Star echo test round-tripped correctly through the parser on a real device (`W3EZE/ECHO`, `W3EZE/ROB`, `W3EZE/TIME`). |
@@ -63,3 +63,27 @@ Pi-Star's real credential store if you want continuity with existing installs.
 
 Not ported: the multi-language UI (English only), and the D-Star-only "dstarrepeater mode" vs. MMDVMHost-mode
 branching from the original `index.php` — this rewrite always renders the full MMDVMHost-style dashboard.
+
+## Config write setup (one-time, on the Pi)
+
+Saving from the Configuration page writes back to `/etc/mmdvmhost`, which is root-owned — the dashboard's Node
+process (running as `pi-star`) needs a scoped `sudo` rule to do that. `deploy/sudoers.d/040-pistar-dashboard-node`
+in this repo has it, mirroring the exact pattern Pi-Star's own PHP dashboard uses for `www-data` (see that file's
+comments for the reasoning). To install it:
+
+```
+rpi-rw
+sudo cp ~/pistar-dashboard/deploy/sudoers.d/040-pistar-dashboard-node /etc/sudoers.d/040-pistar-dashboard-node
+sudo chmod 440 /etc/sudoers.d/040-pistar-dashboard-node
+sudo visudo -c -f /etc/sudoers.d/040-pistar-dashboard-node
+rpi-ro
+```
+
+`visudo -c` validates the syntax without opening an editor — if it doesn't say the file is parsed correctly, fix
+it before trusting it (a broken sudoers file can lock out privilege escalation). The paths in that file
+(`/usr/bin/mount`, `/usr/bin/install`, `/usr/bin/systemctl`) were verified against a real device via `which` —
+confirm they match yours (`which mount install systemctl`) before installing, since sudoers matches the literal
+invoked path.
+
+Without this rule, Configuration saves still work (update the in-memory/API state and the live dashboard) — they
+just won't persist to the real file, and the save response will say so.

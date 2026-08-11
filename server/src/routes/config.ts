@@ -1,8 +1,13 @@
+import { existsSync } from "node:fs";
 import { Router } from "express";
 import type { ConfigSection } from "@pistar/shared";
 import { requireAuth } from "../auth.js";
 import { store } from "../store.js";
 import { wsHub } from "../ws.js";
+import { writeMmdvmHostConfig } from "../pistar/configWriter.js";
+import { buildMmdvmHostEdits } from "../pistar/mmdvmConfigWrite.js";
+
+const MMDVMHOST_CONFIG_PATH = process.env.MMDVMHOST_CONFIG_PATH ?? "/etc/mmdvmhost";
 
 export const configRouter = Router();
 configRouter.use(requireAuth);
@@ -81,7 +86,7 @@ function syncDerivedState(section: ConfigSection) {
   }
 }
 
-configRouter.patch("/:section", (req, res) => {
+configRouter.patch("/:section", async (req, res) => {
   const section = req.params.section as ConfigSection;
   if (!SECTIONS.includes(section)) {
     res.status(404).json({ error: `unknown config section '${section}'` });
@@ -97,5 +102,22 @@ configRouter.patch("/:section", (req, res) => {
   };
   syncDerivedState(section);
   wsHub.broadcast({ type: "dashboard:update", payload: store.dashboardState() });
-  res.json(store.config[section]);
+
+  // Persist to the real /etc/mmdvmhost when present. Requires the
+  // sudoers rule documented in README — if it's missing, this fails
+  // loudly rather than silently pretending the save reached the device.
+  let real: { written: boolean; skipped?: string[]; error?: string } = { written: false };
+  if (existsSync(MMDVMHOST_CONFIG_PATH)) {
+    const edits = buildMmdvmHostEdits(section, store.config);
+    if (edits.length > 0) {
+      try {
+        const result = await writeMmdvmHostConfig(MMDVMHOST_CONFIG_PATH, edits);
+        real = { written: true, skipped: result.skipped.map((e) => `${e.section}.${e.key}`) };
+      } catch (err) {
+        real = { written: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  }
+
+  res.json({ config: store.config[section], real });
 });
