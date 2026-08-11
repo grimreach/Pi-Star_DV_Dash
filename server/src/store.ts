@@ -14,8 +14,10 @@ import type {
   SystemInfo,
   WifiNetwork,
 } from "@pistar/shared";
+import { readDapnetConfig } from "./pistar/dapnetConfig.js";
 import { readMmdvmHostConfig } from "./pistar/mmdvmConfig.js";
 import { readRealSystemInfo } from "./pistar/systemInfo.js";
+import { readTimeServerConfig } from "./pistar/timeServerConfig.js";
 
 /**
  * In-memory data layer standing in for Pi-Star's real system integration
@@ -205,7 +207,9 @@ class DataStore {
     },
     timeServer: {
       enabled: true,
-      ntpServer: "pool.ntp.org",
+      callsign: this.callsign,
+      modules: ["B"],
+      intervalHours: 2,
     },
   };
 
@@ -324,6 +328,7 @@ class DataStore {
 
   constructor() {
     this.loadRealConfigIfAvailable();
+    this.loadDapnetAndTimeServerIfAvailable();
   }
 
   private loadRealConfigIfAvailable() {
@@ -355,6 +360,22 @@ class DataStore {
       nxdnGateway: config.nxdnGateway,
       m17Gateway: config.m17Gateway,
     };
+  }
+
+  private loadDapnetAndTimeServerIfAvailable() {
+    const dapnetPath = process.env.DAPNETGATEWAY_CONFIG_PATH ?? "/etc/dapnetgateway";
+    const dapnet = readDapnetConfig(dapnetPath);
+    if (dapnet) {
+      console.log(`Loaded real DAPNET gateway config from ${dapnetPath}`);
+      this.config = { ...this.config, dapnetGateway: dapnet };
+    }
+
+    const timeServerPath = process.env.TIMESERVER_CONFIG_PATH ?? "/etc/timeserver";
+    const timeServer = readTimeServerConfig(timeServerPath);
+    if (timeServer) {
+      console.log(`Loaded real time server config from ${timeServerPath}`);
+      this.config = { ...this.config, timeServer };
+    }
   }
 }
 

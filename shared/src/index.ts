@@ -171,9 +171,14 @@ export interface DapnetGatewayConfig {
   authKey: string;
 }
 
+// Not an NTP client — this is D-Star's periodic time-beacon feature
+// (the "W3EZE/TIME" entries seen in the activity feed come from it).
+// `modules` lists which D-Star modules (A-E) currently broadcast it.
 export interface TimeServerConfig {
   enabled: boolean;
-  ntpServer: string;
+  callsign: string;
+  modules: string[];
+  intervalHours: number;
 }
 
 export interface FullConfig {

@@ -48,3 +48,21 @@ export function iniBool(sections: IniSections, section: string, key: string, fal
   if (raw === undefined) return fallback;
   return raw === "1" || raw.toLowerCase() === "true" || raw.toLowerCase() === "yes";
 }
+
+/** For files like /etc/timeserver — flat key=value, no [Section] headers at all. */
+export function parseFlatKv(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith(";") || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+      value = value.slice(1, -1);
+    }
+    result[key] = value;
+  }
+  return result;
+}

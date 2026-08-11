@@ -281,14 +281,47 @@ function DapnetFields({ draft, set }: { draft: Record<string, unknown>; set: Set
   );
 }
 
+const DSTAR_MODULES = ["A", "B", "C", "D", "E"];
+
 function TimeServerFields({ draft, set }: { draft: Record<string, unknown>; set: Setter }) {
+  const modules = Array.isArray(draft.modules) ? (draft.modules as string[]) : [];
+
+  function toggleModule(letter: string, on: boolean) {
+    set("modules", on ? [...modules, letter] : modules.filter((m) => m !== letter));
+  }
+
   return (
     <>
+      <p className="mb-2 text-xs text-[color:var(--text-muted)]">
+        D-Star's periodic time-beacon feature (not NTP) — broadcasts the current time as a "CALLSIGN/TIME"
+        transmission on the selected module(s), same as the TIME entries in the activity feed.
+      </p>
       <FieldRow label="Enabled">
-        <Toggle checked={Boolean(draft.enabled)} onChange={(v) => set("enabled", v)} />
+        <Toggle checked={Boolean(draft.enabled)} onChange={() => {}} />
       </FieldRow>
-      <FieldRow label="NTP Server">
-        <TextInput value={String(draft.ntpServer ?? "")} onChange={(e) => set("ntpServer", e.target.value)} />
+      <FieldRow label="Callsign">
+        <TextInput value={String(draft.callsign ?? "")} onChange={(e) => set("callsign", e.target.value.toUpperCase())} />
+      </FieldRow>
+      <FieldRow label="Modules">
+        <div className="flex gap-3">
+          {DSTAR_MODULES.map((letter) => (
+            <label key={letter} className="flex items-center gap-1 text-sm">
+              <input
+                type="checkbox"
+                checked={modules.includes(letter)}
+                onChange={(e) => toggleModule(letter, e.target.checked)}
+              />
+              {letter}
+            </label>
+          ))}
+        </div>
+      </FieldRow>
+      <FieldRow label="Interval (hours)">
+        <NumberInput
+          min={0}
+          value={Number(draft.intervalHours ?? 0)}
+          onChange={(e) => set("intervalHours", Number(e.target.value))}
+        />
       </FieldRow>
     </>
   );
@@ -312,5 +345,10 @@ function SaveStatus({ result }: { result: ConfigPatchResponse["real"] }) {
       </span>
     );
   }
-  return <span className="text-sm text-ok-600">Saved (in-memory only — no real device detected).</span>;
+  return (
+    <span className="text-sm text-ok-600">
+      Saved (in-memory only — this section isn't wired to write a real config file yet, or no real device was
+      detected).
+    </span>
+  );
 }
