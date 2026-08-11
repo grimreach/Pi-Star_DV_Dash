@@ -8,11 +8,11 @@ Express 5, React 19, React Router 8, Vite 8, Tailwind CSS 4, TypeScript 7.
 
 - `shared/` — TypeScript types shared by server and client (dashboard state, config, activity log, WS events).
 - `server/` — Express API + WebSocket server. Config (general/mmdvmHost/dmrGateway/dstarRepeater/ysf/p25/nxdn/m17)
-  is read from the real `/etc/mmdvmhost` when present (`server/src/pistar/mmdvmConfig.ts`). DMR/YSF/P25/NXDN/M17/
-  POCSAG activity is a real tail of `/var/log/pi-star/MMDVM-*.log`, parsed against the log-line formats documented
-  in the original PHP dashboard's source (`server/src/pistar/mmdvmLog.ts` + `logTail.ts` + `activityFeed.ts`).
-  Both fall back to an in-memory mock seed/simulator when the real files aren't present (e.g. local dev off-device).
-  D-Star activity, DAPNET/time-server config, and all admin-action routes (WiFi/SSH/power/firmware/calibration) are
+  is read from the real `/etc/mmdvmhost` when present (`server/src/pistar/mmdvmConfig.ts`). D-Star/DMR/YSF/P25/NXDN/
+  M17/POCSAG activity is a real tail of `/var/log/pi-star/MMDVM-*.log`, parsed against the log-line formats
+  documented in the original PHP dashboard's source (`server/src/pistar/mmdvmLog.ts` + `logTail.ts` +
+  `activityFeed.ts`). Both fall back to an in-memory mock seed/simulator when the real files aren't present (e.g.
+  local dev off-device). DAPNET/time-server config and all admin-action routes (WiFi/SSH/power/firmware/calibration) are
   still mock/simulated (`server/src/simulator.ts`) so the UI stays fully interactive wherever it runs.
 - `client/` — React SPA (Vite): public Dashboard (mirrors the original screenshot) + an authenticated Admin section
   (Configuration, Link Manager, WiFi, SSH Access, Live Logs, System Info, Firmware Upgrade, Calibration, Power).
@@ -48,8 +48,7 @@ swap, not a rewrite:
 | Config (write) | `server/src/routes/config.ts` | Still mock — `PATCH` only updates the in-memory store, doesn't write `/etc/mmdvmhost` back or restart MMDVMHost. Needed before Configuration-editor saves affect the real device. |
 | DAPNET / time server config | `server/src/store.ts` | Still mock — live in separate Pi-Star config files not read yet. |
 | DMR per-slot talkgroup routing | `server/src/pistar/mmdvmConfig.ts` | Approximated from `[DMR Network] Slot1/Slot2` (which slot that network entry carries) rather than true per-slot/per-talkgroup state, which lives in `DMRGateway.ini` (not read). |
-| Live activity (DMR/YSF/P25/NXDN/M17/POCSAG) | `server/src/pistar/mmdvmLog.ts`, `logTail.ts`, `activityFeed.ts` | **Real** — tails `/var/log/pi-star/MMDVM-*.log`, parsed against the log-line formats documented in the original PHP dashboard's source (`mmdvmhost/functions.php`). Verified against those exact sample lines, not yet against live traffic on this specific device (DMR was down; see git history). Log dir/prefix overridable via `MMDVM_LOG_DIR`/`MMDVM_LOG_PREFIX`. |
-| Live activity (D-Star) | `server/src/simulator.ts` | Still simulated — D-Star traffic flows through ircDDBGateway's own log, a different format not ported yet. |
+| Live activity (D-Star/DMR/YSF/P25/NXDN/M17/POCSAG) | `server/src/pistar/mmdvmLog.ts`, `logTail.ts`, `activityFeed.ts` | **Real** — tails `/var/log/pi-star/MMDVM-*.log`, parsed against the log-line formats documented in the original PHP dashboard's source (`mmdvmhost/functions.php`). Verified against those exact sample lines (including reproducing the real `W3EZE/TIME` entry from the original screenshot), not yet against live traffic on this specific device. Log dir/prefix overridable via `MMDVM_LOG_DIR`/`MMDVM_LOG_PREFIX`. |
 | Live network connection status | `server/src/store.ts` (`connectedNetworks`) | Derived from config `Enable` flags, not actual login/connection state — a network can show "connected" while its login is actually failing (seen live: BrandMeister rejecting a stale DMR ID). Could be derived from the log tailer's "Login...failed"/"Opening...Network" lines next. |
 | Power | `server/src/routes/power.ts` | Still mock — a no-op that only logs intent. Needs `sudo shutdown -r/-h now`, wired deliberately and carefully. |
 | WiFi | `server/src/routes/wifi.ts` | Still mock — needs `wpa_cli` scan/connect. |

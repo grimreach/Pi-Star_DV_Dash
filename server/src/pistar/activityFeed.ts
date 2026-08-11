@@ -7,12 +7,9 @@ import { MmdvmLogParser } from "./mmdvmLog.js";
 /**
  * Wires the real MMDVM log into the dashboard: tails today's log file,
  * feeds every line into both the raw live-log broadcast (Admin > Live
- * Logs) and the MmdvmLogParser (activity feed). Returns null if the log
- * directory isn't present (e.g. local dev off-device) so the caller can
- * fall back to the simulator.
- *
- * D-Star activity isn't covered — see mmdvmLog.ts header — so it stays
- * simulated even when this is active.
+ * Logs) and the MmdvmLogParser (activity feed — D-Star included, see
+ * mmdvmLog.ts). Returns null if the log directory isn't present (e.g.
+ * local dev off-device) so the caller can fall back to the simulator.
  */
 
 const LOG_DIR = process.env.MMDVM_LOG_DIR ?? "/var/log/pi-star";

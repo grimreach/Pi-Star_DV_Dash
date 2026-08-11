@@ -32,14 +32,18 @@ import type { ActivityEntry, Mode } from "@pistar/shared";
  * quirk; the tradeoff is no "TX in progress" live row while a call is
  * still active.
  *
- * D-Star is intentionally NOT handled here — real D-Star traffic on
- * Pi-Star flows through ircDDBGateway's own log, a different format not
- * yet ported. D-Star activity stays simulated until that's built.
+ * D-Star's callsign field is fixed-width-padded and slash-suffixed
+ * ("M1ABC   /ABCD" — 8-char callsign slot + module/purpose suffix, e.g.
+ * a real module letter or "TIME" for ircDDBGateway's periodic time-sync
+ * beacon), and its network header line appends " via REFxxx X" after the
+ * target — both handled in extractCallsignAndTarget below. Every other
+ * mode's callsign/target fields aren't padded or suffixed this way.
  */
 
-type Channel = "DMR Slot 1" | "DMR Slot 2" | "YSF" | "P25" | "NXDN" | "M17" | "POCSAG";
+type Channel = "D-Star" | "DMR Slot 1" | "DMR Slot 2" | "YSF" | "P25" | "NXDN" | "M17" | "POCSAG";
 
 const CHANNEL_TO_MODE: Record<Channel, Mode> = {
+  "D-Star": "dstar",
   "DMR Slot 1": "dmr",
   "DMR Slot 2": "dmr",
   YSF: "ysf",
@@ -105,9 +109,20 @@ function extractCallsignAndTarget(line: string): { callsign: string; target: str
   const toIdx = line.indexOf(" to ", fromIdx);
   if (fromIdx === -1 || toIdx === -1) return null;
 
-  const callsign = line.slice(fromIdx + 5, toIdx).trim();
+  const rawCallsign = line.slice(fromIdx + 5, toIdx).trim();
+  const slash = rawCallsign.indexOf("/");
+  let callsign: string;
+  if (slash === -1) {
+    callsign = rawCallsign;
+  } else {
+    const base = rawCallsign.slice(0, slash).trim();
+    const suffix = rawCallsign.slice(slash + 1).trim();
+    callsign = suffix ? `${base}/${suffix}` : base;
+  }
 
   let target = line.slice(toIdx + 4).trim();
+  const via = target.indexOf(" via ");
+  if (via !== -1) target = target.slice(0, via).trim();
   const comma = target.indexOf(",");
   if (comma !== -1) target = target.slice(0, comma).trim();
 
@@ -206,6 +221,10 @@ export class MmdvmLogParser {
       berPercent: metrics.berPercent,
       rssiDbm: metrics.rssiDbm,
     };
+    // The original dashboard always shows an aprs.fi lookup badge next to
+    // D-Star callsigns (they're alphabetic, unlike DMR's numeric IDs) —
+    // it's not reporting that this specific transmission carried GPS data.
+    if (mode === "dstar") entry.gps = true;
     return entry;
   }
 }
