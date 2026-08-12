@@ -18,6 +18,11 @@
 # Raspberry Pi OS since NodeSource's apt repo doesn't support armhf). If
 # you installed Node a different way, run `which node` and adjust the path
 # — it must be absolute, since systemd services don't get your shell's PATH.
+#
+# Once nginx is terminating HTTPS in front of this (see deploy/nginx/pi-star),
+# uncomment the COOKIE_SECURE line below so the session cookie is marked
+# Secure. Leave it commented for a plain-HTTP setup — a Secure cookie is
+# silently dropped by the browser over HTTP, which would break login.
 
 [Unit]
 Description=Pi-Star Dashboard (Node.js/React)
@@ -29,6 +34,7 @@ WorkingDirectory=__WORKDIR__
 Environment=NODE_ENV=production
 Environment=PORT=8080
 Environment=SESSION_SECRET=__SECRET__
+# Environment=COOKIE_SECURE=true
 ExecStart=/usr/local/bin/node server/dist/index.js
 Restart=on-failure
 User=__USER__

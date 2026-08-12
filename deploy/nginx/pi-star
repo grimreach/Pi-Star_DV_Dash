@@ -10,11 +10,33 @@
 #   sudo nginx -t
 #   sudo systemctl reload nginx
 #
-# Two server blocks, matching the original's shape:
+# HTTPS on the LAN-facing block, self-signed (fine here — this is a device
+# on your own LAN, not something with a public hostname to get a real cert
+# for). Generate it once before reloading nginx:
+#
+#   sudo mkdir -p /etc/ssl/pistar
+#   sudo openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+#     -keyout /etc/ssl/pistar/dashboard.key -out /etc/ssl/pistar/dashboard.crt \
+#     -subj "/CN=pi-star.local"
+#
+# Also set COOKIE_SECURE=true in pistar-dashboard-node.service once this is
+# live (see deploy/systemd/pistar-dashboard-node.service) — the session
+# cookie stays non-Secure by default specifically so login doesn't silently
+# break on a plain-HTTP setup; once you're actually serving HTTPS, flip it.
+# The browser will warn on first visit (self-signed, expected) — "proceed
+# anyway" / add a security exception once per browser, same as any LAN
+# router or NAS admin page.
+#
+# Three server blocks, matching the original's shape plus the new redirect:
 #   - listen 192.168.50.1:80  — AP-mode setup access (192.168.50.1 is the
-#     Pi's own hotspot gateway IP when broadcasting its own WiFi AP).
+#     Pi's own hotspot gateway IP when broadcasting its own WiFi AP), left
+#     as plain HTTP — captive-portal detection on phones/laptops doesn't
+#     reliably follow HTTPS, and you haven't trusted the cert yet at this
+#     point in first-time setup anyway.
 #   - listen 80 default_server — normal LAN access (Ethernet or client-mode
-#     WiFi), what you hit day-to-day as pi-star.local or its LAN IP.
+#     WiFi) now just redirects to HTTPS.
+#   - listen 443 ssl default_server — what you actually hit day-to-day as
+#     https://pi-star.local or its LAN IP.
 #
 # Deliberately NOT ported from the original: the /admin location's PHP-
 # specific auth_basic (.htpasswd) / IP-restriction blocks. The Node app is a
@@ -61,6 +83,15 @@ server {
 server {
         listen 80 default_server;
         listen [::]:80 default_server;
+
+        return 301 https://$host$request_uri;
+}
+server {
+        listen 443 ssl default_server;
+        listen [::]:443 ssl default_server;
+
+        ssl_certificate /etc/ssl/pistar/dashboard.crt;
+        ssl_certificate_key /etc/ssl/pistar/dashboard.key;
 
         location /ws {
                 proxy_pass http://127.0.0.1:8080;

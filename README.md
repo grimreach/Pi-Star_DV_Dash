@@ -74,12 +74,17 @@ NODE_ENV=production node server/dist/index.js
 
 5. **Side-by-side testing vs. full replacement** — run the service on `:8080` and try it alongside the untouched
    PHP dashboard on `:80` first. Once you trust it, `deploy/nginx/pi-star` replaces the stock PHP-serving nginx
-   config with a reverse proxy to the Node app, letting you remove `php8.2-fpm` and the PHP dashboard code
-   entirely — see that file's header comment for exactly what changes and why (notably: it drops the nginx-level
-   `.htpasswd` auth in front of `/admin`, relying solely on the Node app's own session login, since the PHP-era
-   split between a server-routed public page and a server-routed admin page doesn't exist anymore — it's one SPA
-   with client-side routing and server-side API auth). **Back up `/var/www/dashboard` and `/etc/nginx` before doing
-   this** — the PHP removal step is not easily reversible without that backup.
+   config with a reverse proxy to the Node app (HTTPS included, self-signed, with an HTTP→HTTPS redirect on the
+   LAN-facing block), letting you remove `php8.2-fpm` and the PHP dashboard code entirely — see that file's header
+   comment for the one-time cert generation step and exactly what changes and why (notably: it drops the
+   nginx-level `.htpasswd` auth in front of `/admin`, relying solely on the Node app's own session login, since the
+   PHP-era split between a server-routed public page and a server-routed admin page doesn't exist anymore — it's
+   one SPA with client-side routing and server-side API auth). **Back up `/var/www/dashboard` and `/etc/nginx`
+   before doing this** — the PHP removal step is not easily reversible without that backup.
+
+6. **Once HTTPS is live**, uncomment `Environment=COOKIE_SECURE=true` in the systemd unit (see its header comment)
+   and `sudo systemctl restart pistar-dashboard-node` — marks the session cookie Secure. Skip this if you're
+   staying on plain HTTP; a Secure cookie is silently dropped by the browser over HTTP, which breaks login.
 
 ## What's real vs. mocked
 
