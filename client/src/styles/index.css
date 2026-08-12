@@ -106,6 +106,60 @@ body {
   padding: 0.5rem 0.85rem;
 }
 
+/* Dashboard grid resize handles (react-grid-layout, Edit layout mode) —
+   overrides react-resizable's default near-invisible, hover-only, rotated
+   corner icon with themed grab bars so vertical/horizontal stretch is
+   actually discoverable. Selectors match react-grid-layout's own
+   `.react-grid-item > .react-resizable-handle.react-resizable-handle-*`
+   specificity, since its stylesheet loads after ours and would otherwise
+   win the cascade. */
+.react-grid-item > .react-resizable-handle {
+  background-image: none;
+  opacity: 1;
+  z-index: 10;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  content: none;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+  bottom: -3px;
+  left: 50%;
+  width: 48px;
+  height: 8px;
+  margin-left: -24px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  transform: none;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e {
+  right: -3px;
+  top: 50%;
+  width: 8px;
+  height: 48px;
+  margin-top: -24px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  transform: none;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se {
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--border-subtle);
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s:hover,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e:hover,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se:hover {
+  background: var(--color-brand-500);
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

@@ -31,18 +31,24 @@ export function DashboardGrid() {
       containerPadding={[0, 0]}
       isDraggable={editing}
       isResizable={editing}
+      resizeHandles={["s", "e", "se"]}
       draggableHandle=".widget-drag-handle"
       onLayoutChange={handleLayoutChange}
     >
       {WIDGET_REGISTRY.map((w) => {
         const Widget = WIDGET_MAP.get(w.id)!.component;
         return (
-          <div key={w.id} className="panel flex h-full flex-col overflow-hidden">
-            <div className={`panel-header flex items-center justify-between ${editing ? "widget-drag-handle cursor-move" : ""}`}>
-              <span>{w.title}</span>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              <Widget />
+          // Resize handles are appended as siblings of the panel div by
+          // react-grid-layout — kept outside the panel's own overflow-hidden
+          // and rounded corners so they render uncropped and stay clickable.
+          <div key={w.id} className="h-full">
+            <div className="panel flex h-full flex-col overflow-hidden">
+              <div className={`panel-header flex items-center justify-between ${editing ? "widget-drag-handle cursor-move" : ""}`}>
+                <span>{w.title}</span>
+              </div>
+              <div className="min-h-0 flex-1 overflow-auto">
+                <Widget />
+              </div>
             </div>
           </div>
         );
