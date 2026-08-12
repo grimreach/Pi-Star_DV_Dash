@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   ActivityEntry,
+  ActivityStats,
   DashboardState,
   FullConfig,
   LinkProtocol,
@@ -13,6 +14,7 @@ import type {
   SystemInfo,
   WifiNetwork,
 } from "@pistar/shared";
+import { computeActivityStats } from "./pistar/activityStats.js";
 import { readDapnetConfig } from "./pistar/dapnetConfig.js";
 import { readMmdvmHostConfig } from "./pistar/mmdvmConfig.js";
 import { readRealSystemInfo } from "./pistar/systemInfo.js";
@@ -319,7 +321,16 @@ class DataStore {
 
   pushActivity(scope: "gateway" | "localRf", entry: ActivityEntry) {
     const key = scope === "gateway" ? "gateway" : "localRf";
-    this.activity[key] = [entry, ...this.activity[key]].slice(0, 50);
+    // Capped well above what the live tables show (top 25) so there's
+    // enough retained history for the 24h activity chart — in-memory only,
+    // so this resets on a service restart, but a Pi-Star hotspot's daily
+    // contact volume comfortably fits in 1000 entries per scope either way.
+    this.activity[key] = [entry, ...this.activity[key]].slice(0, 1000);
+  }
+
+  activityStats(hours = 24): ActivityStats {
+    const combined = [...this.activity.gateway, ...this.activity.localRf];
+    return computeActivityStats(combined, Date.now(), hours);
   }
 
   constructor() {

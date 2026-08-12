@@ -83,6 +83,24 @@ export interface ActivityEntry {
   gps?: boolean;
 }
 
+export interface ActivityHourlyBucket {
+  /** epoch millis, start of the hour */
+  hourStart: number;
+  count: number;
+}
+
+export interface ActivityModeCount {
+  mode: Mode;
+  count: number;
+}
+
+export interface ActivityStats {
+  /** oldest -> newest, one entry per hour in the window */
+  hourly: ActivityHourlyBucket[];
+  byMode: ActivityModeCount[];
+  totalContacts: number;
+}
+
 export interface DashboardState {
   callsign: string;
   hostname: string;

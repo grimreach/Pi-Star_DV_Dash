@@ -10,6 +10,7 @@ import {
   NetworkStatusWidget,
   RadioInfoWidget,
 } from "./widgets";
+import { ActivityHistoryWidget } from "./widgets/ActivityHistoryWidget";
 import { LinkStatusWidget } from "./widgets/LinkStatusWidget";
 import { LiveLogWidget } from "./widgets/LiveLogWidget";
 import { SystemInfoWidget } from "./widgets/SystemInfoWidget";
@@ -47,6 +48,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
   { id: "gateway-activity", title: "Gateway Activity", component: GatewayActivityWidget, defaultLayout: { x: 3, y: 0, w: 9, h: 8 }, minW: 4, minH: 4 },
   { id: "local-rf-activity", title: "Local RF Activity", component: LocalRfActivityWidget, defaultLayout: { x: 3, y: 8, w: 9, h: 8 }, minW: 4, minH: 4 },
   { id: "live-log", title: "Live Log", component: LiveLogWidget, defaultLayout: { x: 3, y: 16, w: 9, h: 6 }, minW: 4, minH: 3 },
+  { id: "activity-history", title: "Activity History (24h)", component: ActivityHistoryWidget, defaultLayout: { x: 3, y: 22, w: 9, h: 6 }, minW: 5, minH: 5 },
 ];
 
 export const WIDGET_MAP = new Map(WIDGET_REGISTRY.map((w) => [w.id, w]));

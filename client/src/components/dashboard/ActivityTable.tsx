@@ -1,7 +1,7 @@
 import type { ActivityEntry } from "@pistar/shared";
 import { formatTime } from "../../lib/format";
 
-const MODE_LABELS: Record<string, string> = {
+export const MODE_LABELS: Record<string, string> = {
   dstar: "D-Star",
   dmr: "DMR",
   m17: "M17",
