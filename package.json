@@ -17,6 +17,7 @@
     "dev:client": "npm run dev --workspace client",
     "build": "npm run build --workspace shared && npm run build --workspace server && npm run build --workspace client",
     "build:shared": "npm run build --workspace shared",
-    "typecheck": "npm run typecheck --workspace shared && npm run typecheck --workspace server && npm run typecheck --workspace client"
+    "typecheck": "npm run typecheck --workspace shared && npm run typecheck --workspace server && npm run typecheck --workspace client",
+    "test": "npm run test --workspace server"
   }
 }

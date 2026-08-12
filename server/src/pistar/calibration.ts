@@ -48,6 +48,60 @@ const MODE_COMMANDS: Record<CalibrationMode, string> = {
 
 const EMPTY_STATS: CalibrationStats = { frames: 0, bits: 0, errors: 0, berPercent: 0 };
 
+export interface CalibrationChunkResult {
+  finished: boolean;
+  patch: Partial<Pick<CalibrationState, "activeMode" | "offsetHz" | "current" | "total">>;
+}
+
+/**
+ * Pure — parses one chunk of MMDVMCal's raw log output into a state patch.
+ * Easy to unit-test without a real UDP socket or log file. Split out of
+ * CalibrationEngine.handleChunk, which layers the side effects (broadcast,
+ * teardown) back on top.
+ */
+export function parseCalibrationChunk(
+  chunk: string,
+  state: { baseFrequencyHz: number; current: CalibrationStats; total: CalibrationStats },
+): CalibrationChunkResult {
+  if (chunk.includes("Finnished...")) {
+    return { finished: true, patch: {} };
+  }
+
+  const patch: CalibrationChunkResult["patch"] = {};
+
+  for (const [marker, mode] of MODE_MARKERS) {
+    if (chunk.includes(marker)) patch.activeMode = mode;
+  }
+
+  const freqMatch = chunk.match(/ frequency: (\d+)/);
+  if (freqMatch) {
+    patch.offsetHz = Number.parseInt(freqMatch[1]!, 10) - state.baseFrequencyHz;
+  }
+
+  let current = chunk.includes("voice end received,") ? EMPTY_STATS : state.current;
+  let total = state.total;
+  let statsChanged = chunk.includes("voice end received,");
+
+  const berRegex = /% \((\d+)\/(\d+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = berRegex.exec(chunk))) {
+    const errors = Number.parseInt(match[1]!, 10);
+    const bits = Number.parseInt(match[2]!, 10);
+    current = { frames: current.frames + 1, errors: current.errors + errors, bits: current.bits + bits, berPercent: 0 };
+    total = { frames: total.frames + 1, errors: total.errors + errors, bits: total.bits + bits, berPercent: 0 };
+    statsChanged = true;
+  }
+
+  if (statsChanged) {
+    current = { ...current, berPercent: current.bits > 0 ? (current.errors / current.bits) * 100 : 0 };
+    total = { ...total, berPercent: total.bits > 0 ? (total.errors / total.bits) * 100 : 0 };
+    patch.current = current;
+    patch.total = total;
+  }
+
+  return { finished: false, patch };
+}
+
 class CalibrationEngine {
   private socket: dgram.Socket | null = null;
   private tailer: FileTailer | null = null;
@@ -184,44 +238,19 @@ class CalibrationEngine {
       setTimeout(() => this.sendCommand("e", String(freq)), 1000);
     }
 
-    if (chunk.includes("Finnished...")) {
+    const result = parseCalibrationChunk(chunk, {
+      baseFrequencyHz: this.state.baseFrequencyHz,
+      current: this.state.current,
+      total: this.state.total,
+    });
+
+    if (result.finished) {
       this.setState({ running: false, activeMode: null });
       this.teardown();
       return;
     }
 
-    let patch: Partial<CalibrationState> = {};
-
-    for (const [marker, mode] of MODE_MARKERS) {
-      if (chunk.includes(marker)) patch.activeMode = mode;
-    }
-
-    const freqMatch = chunk.match(/ frequency: (\d+)/);
-    if (freqMatch) {
-      patch.offsetHz = Number.parseInt(freqMatch[1]!, 10) - this.state.baseFrequencyHz;
-    }
-
-    let current = chunk.includes("voice end received,") ? EMPTY_STATS : this.state.current;
-    let total = this.state.total;
-    let statsChanged = chunk.includes("voice end received,");
-
-    const berRegex = /% \((\d+)\/(\d+)\)/g;
-    let match: RegExpExecArray | null;
-    while ((match = berRegex.exec(chunk))) {
-      const errors = Number.parseInt(match[1]!, 10);
-      const bits = Number.parseInt(match[2]!, 10);
-      current = { frames: current.frames + 1, errors: current.errors + errors, bits: current.bits + bits, berPercent: 0 };
-      total = { frames: total.frames + 1, errors: total.errors + errors, bits: total.bits + bits, berPercent: 0 };
-      statsChanged = true;
-    }
-
-    if (statsChanged) {
-      current = { ...current, berPercent: current.bits > 0 ? (current.errors / current.bits) * 100 : 0 };
-      total = { ...total, berPercent: total.bits > 0 ? (total.errors / total.bits) * 100 : 0 };
-      patch = { ...patch, current, total };
-    }
-
-    if (Object.keys(patch).length > 0) this.setState(patch);
+    if (Object.keys(result.patch).length > 0) this.setState(result.patch);
   }
 }
 
