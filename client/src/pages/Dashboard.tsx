@@ -1,4 +1,5 @@
 import { DashboardGrid } from "../dashboard/DashboardGrid";
+import { MobileWidgetStack } from "../dashboard/MobileWidgetStack";
 import { useLayoutStore } from "../store/layout";
 
 export function Dashboard() {
@@ -8,7 +9,9 @@ export function Dashboard() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-end gap-2">
+      {/* Drag/resize editing only applies to the desktop grid below —
+          not worth the touch-target trouble on the single-column mobile stack. */}
+      <div className="mb-4 hidden items-center justify-end gap-2 lg:flex">
         {editing && (
           <button
             type="button"
@@ -26,7 +29,12 @@ export function Dashboard() {
           {editing ? "Done" : "Edit layout"}
         </button>
       </div>
-      <DashboardGrid />
+      <div className="hidden lg:block">
+        <DashboardGrid />
+      </div>
+      <div className="lg:hidden">
+        <MobileWidgetStack />
+      </div>
     </div>
   );
 }

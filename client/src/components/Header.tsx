@@ -28,7 +28,7 @@ export function Header() {
       <div className="px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-bold">Pi-Star Digital Voice Dashboard for {callsign}</h1>
-          <nav className="flex items-center gap-3 text-sm">
+          <nav className="flex flex-wrap items-center gap-3 text-sm">
             <NavLink to="/" end className={({ isActive }) => (isActive ? "font-semibold text-brand-500" : "text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]")}>
               Dashboard
             </NavLink>
