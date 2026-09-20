@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { Router } from "express";
+import type { Request, Response } from "express";
 import type { ConfigSection } from "@pistar/shared";
 import { requireAuth } from "../auth.js";
 import { store } from "../store.js";
@@ -86,7 +87,13 @@ function syncDerivedState(section: ConfigSection) {
   }
 }
 
-configRouter.patch("/:section", async (req, res) => {
+// POST rather than PATCH: the stock Pi-Star nginx site config includes
+// /etc/nginx/default.d/security.conf, which closes the connection
+// (`return 444`) on any method other than GET/HEAD/POST. A PATCH from the
+// browser never reaches this process — the client just sees a dropped
+// connection and shows "Save failed". PATCH is kept as an alias for direct
+// :8080 access (side-by-side testing, curl) where nginx isn't in the path.
+async function updateSection(req: Request, res: Response) {
   const section = req.params.section as ConfigSection;
   if (!SECTIONS.includes(section)) {
     res.status(404).json({ error: `unknown config section '${section}'` });
@@ -120,4 +127,7 @@ configRouter.patch("/:section", async (req, res) => {
   }
 
   res.json({ config: store.config[section], real });
-});
+}
+
+configRouter.post("/:section", updateSection);
+configRouter.patch("/:section", updateSection);

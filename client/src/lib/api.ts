@@ -21,6 +21,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+// Only `get` and `post` are safe on a real device: the stock Pi-Star nginx
+// config includes /etc/nginx/default.d/security.conf, which returns 444
+// (connection closed, no response) for any method other than GET/HEAD/POST.
+// `patch`/`put` work against the bare :8080 dev server but silently fail
+// behind nginx, so new routes should use POST.
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) =>

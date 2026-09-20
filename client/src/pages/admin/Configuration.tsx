@@ -66,7 +66,9 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
   }, [section]);
 
   const mutation = useMutation({
-    mutationFn: () => api.patch<ConfigPatchResponse>(`/config/${section}`, draft),
+    // POST, not PATCH — Pi-Star's stock nginx security include drops any
+    // method other than GET/HEAD/POST before it reaches the Node app.
+    mutationFn: () => api.post<ConfigPatchResponse>(`/config/${section}`, draft),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["config"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });

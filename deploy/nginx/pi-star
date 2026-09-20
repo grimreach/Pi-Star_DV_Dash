@@ -48,6 +48,12 @@
 # login. This is an intentional reduction from two auth layers to one,
 # decided explicitly rather than silently.
 #
+# The `include /etc/nginx/default.d/security.conf` lines below pull in the
+# stock Pi-Star hardening snippet, which among other things returns 444
+# (connection closed) for any request method other than GET/HEAD/POST. The
+# Node API is written to only need GET and POST for that reason — if you add
+# a route using PATCH/PUT/DELETE it will work on :8080 but be dropped here.
+#
 # The separate captive-portal site (redirects connectivity-check hostnames
 # to 192.168.50.1/index.php) is untouched by this file and needs no changes
 # — the Node app's catch-all route serves the SPA shell for any non-API

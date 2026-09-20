@@ -80,7 +80,9 @@ NODE_ENV=production node server/dist/index.js
    nginx-level `.htpasswd` auth in front of `/admin`, relying solely on the Node app's own session login, since the
    PHP-era split between a server-routed public page and a server-routed admin page doesn't exist anymore — it's
    one SPA with client-side routing and server-side API auth). **Back up `/var/www/dashboard` and `/etc/nginx`
-   before doing this** — the PHP removal step is not easily reversible without that backup.
+   before doing this** — the PHP removal step is not easily reversible without that backup. Note that this config
+   keeps Pi-Star's stock `/etc/nginx/default.d/security.conf` include, which closes the connection on any request
+   method other than GET/HEAD/POST — the API deliberately uses only GET and POST so it works behind it.
 
 6. **Once HTTPS is live**, uncomment `Environment=COOKIE_SECURE=true` in the systemd unit (see its header comment)
    and `sudo systemctl restart pistar-dashboard-node` — marks the session cookie Secure. Skip this if you're
