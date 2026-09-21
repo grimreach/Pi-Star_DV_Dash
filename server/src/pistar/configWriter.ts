@@ -30,12 +30,36 @@ const execFileAsync = promisify(execFile);
  * NOT attempt to write sudoers itself.
  */
 
-const ALLOWED_FILES = new Set(["/etc/mmdvmhost"]);
+/**
+ * Config files this process may write, mapped to the temp-file suffix the
+ * sudoers install rule for each one matches on
+ * (/tmp/pistar-node-cw-*.<suffix> → <path>). Adding a file here requires
+ * the matching line in deploy/sudoers.d/040-pistar-dashboard-node.
+ */
+const ALLOWED_FILES = new Map<string, string>([
+  ["/etc/mmdvmhost", "mmdvmhost"],
+  ["/etc/dmrgateway", "dmrgateway"],
+  ["/etc/bmapi.key", "bmapikey"],
+]);
+
+function allowedSuffix(configPath: string): string {
+  // Dev/test override: MMDVMHOST_CONFIG_PATH etc. may point anywhere; the
+  // basename still decides the suffix so the same code path is exercised.
+  const suffix = ALLOWED_FILES.get(configPath) ?? [...ALLOWED_FILES.entries()].find(([p]) => configPath.endsWith(path.basename(p)))?.[1];
+  if (!suffix) throw new Error(`refusing to write non-allowlisted path: ${configPath}`);
+  return suffix;
+}
 
 export interface SectionEdit {
   section: string;
   key: string;
   value: string;
+  /**
+   * Add the key at the end of the section when it isn't present, instead
+   * of reporting it as skipped. Used for keys stock configs may lack
+   * (e.g. [DMR Network 1] Id, which only exists once an ESSID was set).
+   */
+  insertIfMissing?: boolean;
 }
 
 function assertSafeValue(value: string) {
@@ -82,7 +106,17 @@ export function applySectionEdits(originalLines: string[], edits: SectionEdit[])
         break;
       }
     }
-    if (!applied) skipped.push(edit);
+    if (!applied) {
+      if (edit.insertIfMissing) {
+        // Insert before any trailing blank lines so the section's spacing
+        // to the next header is preserved.
+        let insertAt = sectionEnd;
+        while (insertAt > sectionStart + 1 && lines[insertAt - 1]!.trim() === "") insertAt--;
+        lines.splice(insertAt, 0, `${prefix}${edit.value}`);
+      } else {
+        skipped.push(edit);
+      }
+    }
   }
 
   return { lines, skipped };
@@ -92,23 +126,12 @@ export interface WriteResult {
   skipped: SectionEdit[];
 }
 
-export async function writeMmdvmHostConfig(configPath: string, edits: SectionEdit[]): Promise<WriteResult> {
-  if (!ALLOWED_FILES.has(configPath)) {
-    throw new Error(`refusing to write non-allowlisted path: ${configPath}`);
-  }
-  if (edits.length === 0) return { skipped: [] };
-
-  const original = await readFile(configPath, "utf8");
-  const trailingNewline = original.endsWith("\n");
-  const originalLines = original.split("\n");
-  const withoutTrailingEmpty = trailingNewline ? originalLines.slice(0, -1) : originalLines;
-
-  const { lines, skipped } = applySectionEdits(withoutTrailingEmpty, edits);
-  const newContent = lines.join("\n") + "\n";
-
-  const tmpFile = path.join(tmpdir(), `pistar-node-cw-${randomBytes(8).toString("hex")}.mmdvmhost`);
+/** Stage content in /tmp and atomically install it as root over an allow-listed path. */
+export async function installConfigFile(configPath: string, content: string): Promise<void> {
+  const suffix = allowedSuffix(configPath);
+  const tmpFile = path.join(tmpdir(), `pistar-node-cw-${randomBytes(8).toString("hex")}.${suffix}`);
   try {
-    await writeFile(tmpFile, newContent, { mode: 0o600 });
+    await writeFile(tmpFile, content, { mode: 0o600 });
     await execFileAsync("sudo", ["/usr/bin/mount", "-o", "remount,rw", "/"]);
     try {
       await execFileAsync("sudo", ["/usr/bin/install", "-m", "644", "-o", "root", "-g", "root", tmpFile, configPath]);
@@ -118,10 +141,30 @@ export async function writeMmdvmHostConfig(configPath: string, edits: SectionEdi
   } finally {
     await rm(tmpFile, { force: true });
   }
+}
 
+/** Section-aware key=value edits to an existing allow-listed INI file. */
+export async function writeIniConfig(configPath: string, edits: SectionEdit[]): Promise<WriteResult> {
+  allowedSuffix(configPath);
+  if (edits.length === 0) return { skipped: [] };
+
+  const original = await readFile(configPath, "utf8");
+  const trailingNewline = original.endsWith("\n");
+  const originalLines = original.split("\n");
+  const withoutTrailingEmpty = trailingNewline ? originalLines.slice(0, -1) : originalLines;
+
+  const { lines, skipped } = applySectionEdits(withoutTrailingEmpty, edits);
+  await installConfigFile(configPath, lines.join("\n") + "\n");
   return { skipped };
 }
 
+/** Kept for existing callers/tests — /etc/mmdvmhost is just one allow-listed INI file now. */
+export const writeMmdvmHostConfig = writeIniConfig;
+
 export async function restartMmdvmHost(): Promise<void> {
   await execFileAsync("sudo", ["/usr/bin/systemctl", "restart", "mmdvmhost.service"]);
+}
+
+export async function restartDmrGateway(): Promise<void> {
+  await execFileAsync("sudo", ["/usr/bin/systemctl", "restart", "dmrgateway.service"]);
 }

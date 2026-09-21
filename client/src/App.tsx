@@ -8,6 +8,7 @@ import { useLiveStore } from "./store/live";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { AdminOverview } from "./pages/admin/AdminOverview";
+import { BrandMeister } from "./pages/admin/BrandMeister";
 import { Calibration } from "./pages/admin/Calibration";
 import { Configuration } from "./pages/admin/Configuration";
 import { Firmware } from "./pages/admin/Firmware";
@@ -45,6 +46,7 @@ export function App() {
             <Route index element={<AdminOverview />} />
             <Route path="configuration" element={<Configuration />} />
             <Route path="links" element={<LinkManager />} />
+            <Route path="brandmeister" element={<BrandMeister />} />
             <Route path="wifi" element={<Wifi />} />
             <Route path="ssh" element={<SshAccess />} />
             <Route path="logs" element={<LiveLogs />} />

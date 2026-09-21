@@ -70,7 +70,9 @@ NODE_ENV=production node server/dist/index.js
 
 4. **Config writes, power, WiFi, and calibration need one sudoers file** — `deploy/sudoers.d/040-pistar-dashboard-node`
    (install instructions in that file's header comment; validate with `sudo visudo -c` before trusting it). Without
-   it, those features fall back to read-only/mock behavior rather than failing silently.
+   it, those features fall back to read-only/mock behavior rather than failing silently. If you installed an earlier
+   copy, re-copy it: the DMR tab now also writes `/etc/dmrgateway` and `/etc/bmapi.key` and restarts
+   `dmrgateway.service`, each of which needs its own line.
 
 5. **Side-by-side testing vs. full replacement** — run the service on `:8080` and try it alongside the untouched
    PHP dashboard on `:80` first. Once you trust it, `deploy/nginx/pi-star` replaces the stock PHP-serving nginx
@@ -87,6 +89,25 @@ NODE_ENV=production node server/dist/index.js
 6. **Once HTTPS is live**, uncomment `Environment=COOKIE_SECURE=true` in the systemd unit (see its header comment)
    and `sudo systemctl restart pistar-dashboard-node` — marks the session cookie Secure. Skip this if you're
    staying on plain HTTP; a Secure cookie is silently dropped by the browser over HTTP, which breaks login.
+
+## DMR configuration model
+
+The DMR Gateway tab follows the same model as Pi-Star and WPSD (studied from WPSD's `admin/configure.php` and its
+BM Manager; nothing copied):
+
+- **Master** is picked from `/usr/local/etc/DMR_Hosts.txt` (the list Pi-Star keeps updated), with a custom
+  address/port escape hatch and a built-in fallback list when the file isn't present.
+- **Connection** is *Direct* (MMDVMHost logs into the master itself; `/etc/mmdvmhost [DMR Network]` holds the real
+  address, port and password) or *Via DMRGateway* (`/etc/mmdvmhost` is pointed at `127.0.0.1:62031` and the real
+  master, password and ESSID live in `/etc/dmrgateway [DMR Network 1]`). The mode is detected from which address the
+  file currently has, so an existing setup is shown as-is.
+- **ESSID** is the optional 2-digit suffix on the login ID: `[DMR] Id` in direct mode, `[DMR Network 1] Id` in
+  gateway mode. `[General] Id` always stays the bare 7-digit ID.
+- **Password** is written quoted (`Password="…"`), as both PHP dashboards do — MMDVMHost treats `#` in an unquoted
+  value as a comment start and would truncate the password there.
+- **BrandMeister API key** is stored in `/etc/bmapi.key` (`[key]` / `apikey=…`, the same file Pi-Star/WPSD use) and
+  drives the **BrandMeister** admin page: static talkgroup add/drop and dropping dynamic TGs or the current QSO per
+  timeslot, through BrandMeister's v2 API.
 
 ## What's real vs. mocked
 

@@ -15,7 +15,9 @@ import type {
   WifiNetwork,
 } from "@pistar/shared";
 import { computeActivityStats } from "./pistar/activityStats.js";
+import { readBmApiKey } from "./pistar/bmApiKey.js";
 import { readDapnetConfig } from "./pistar/dapnetConfig.js";
+import { readDmrGatewayNetwork1, splitEssid } from "./pistar/dmrGatewayConfig.js";
 import { readMmdvmHostConfig } from "./pistar/mmdvmConfig.js";
 import { readRealSystemInfo } from "./pistar/systemInfo.js";
 import { readTimeServerConfig } from "./pistar/timeServerConfig.js";
@@ -168,10 +170,13 @@ class DataStore {
     dmrGateway: {
       enabled: true,
       id: "1107385",
+      essid: "",
       colorCode: 1,
       ts1Enabled: false,
       ts2Enabled: true,
-      master: "BM 3102 United States",
+      mode: "direct",
+      master: "3102.master.brandmeister.network",
+      masterPort: 62031,
       networkPassword: "",
       bmApiKey: "",
     },
@@ -339,6 +344,7 @@ class DataStore {
   }
 
   private loadRealConfigIfAvailable() {
+    const DMRGATEWAY_CONFIG_PATH = process.env.DMRGATEWAY_CONFIG_PATH ?? "/etc/dmrgateway";
     const path = process.env.MMDVMHOST_CONFIG_PATH ?? "/etc/mmdvmhost";
     const parsed = readMmdvmHostConfig(path);
     if (!parsed) return;
@@ -353,6 +359,26 @@ class DataStore {
     this.radio = { ...this.radio, ...derived.radio };
     this.dstar = { ...this.dstar, ...derived.dstar };
     this.dmr = { ...this.dmr, ...derived.dmr };
+
+    // DMRGateway mode: the master/password/ESSID MMDVMHost's file points
+    // at are just the loopback — overlay the real BrandMeister network
+    // block from /etc/dmrgateway (what Pi-Star/WPSD's "BrandMeister
+    // Master" fields actually edit).
+    if (config.dmrGateway.mode === "gateway") {
+      const net = readDmrGatewayNetwork1(DMRGATEWAY_CONFIG_PATH);
+      if (net) {
+        console.log(`Loaded real DMRGateway network config from ${DMRGATEWAY_CONFIG_PATH}`);
+        config.dmrGateway = {
+          ...config.dmrGateway,
+          master: net.address,
+          masterPort: net.port,
+          networkPassword: net.password,
+          essid: splitEssid(net.id, config.dmrGateway.id),
+        };
+        this.dmr = { ...this.dmr, master: net.address };
+      }
+    }
+    config.dmrGateway = { ...config.dmrGateway, bmApiKey: readBmApiKey() };
 
     // dapnetGateway and timeServer aren't in this file (separate Pi-Star
     // config files, not read yet) — left on the mock seed intentionally.

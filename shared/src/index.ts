@@ -141,19 +141,46 @@ export interface MmdvmHostConfig {
   displayLevel: boolean;
 }
 
+/**
+ * How MMDVMHost reaches the DMR network. Mirrors Pi-Star/WPSD:
+ *  - "direct":  MMDVMHost logs into the master itself — /etc/mmdvmhost
+ *               [DMR Network] Address/Port/Password are the real master.
+ *  - "gateway": MMDVMHost talks to the local DMRGateway daemon
+ *               (127.0.0.1:62031) and the real master/password/ESSID live
+ *               in /etc/dmrgateway [DMR Network 1].
+ */
+export type DmrNetworkMode = "direct" | "gateway";
+
 export interface DmrGatewayConfig {
   enabled: boolean;
+  /** Base 7-digit CCS7/DMR ID ([General] Id). */
   id: string;
+  /** Optional 2-digit extended-ID suffix ("01".."99") appended for the network login, or "" for none. */
+  essid: string;
   colorCode: number;
   ts1Enabled: boolean;
   ts2Enabled: boolean;
+  mode: DmrNetworkMode;
+  /** Hostname/IP of the DMR master (BrandMeister, DMR+, TGIF, XLX…). */
   master: string;
-  // [DMR Network] Password in /etc/mmdvmhost — the actual login password
-  // for the DMR network connection (e.g. your BrandMeister hotspot
-  // password from self-care.brandmeister.network). Distinct from
-  // bmApiKey below, which is BrandMeister's separate REST API key.
+  masterPort: number;
+  // The DMR network login password (for BrandMeister: the Hotspot Security
+  // password from self-care.brandmeister.network; for most other networks
+  // the default from DMR_Hosts.txt). Distinct from bmApiKey below, which
+  // is BrandMeister's separate REST API key (stored in /etc/bmapi.key).
   networkPassword: string;
   bmApiKey: string;
+}
+
+/** One line of /usr/local/etc/DMR_Hosts.txt. */
+export interface DmrMasterHost {
+  /** e.g. "BM_3102_United_States", "DMRGateway", "XLX_307" */
+  name: string;
+  id: string;
+  address: string;
+  /** Default password from the hosts file — a placeholder for BrandMeister ("passw0rd"), "none" for local gateways. */
+  password: string;
+  port: number;
 }
 
 export interface DStarRepeaterConfig {

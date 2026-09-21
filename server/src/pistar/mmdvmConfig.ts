@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import type { DmrNetworkMode } from "@pistar/shared";
 import type {
   DStarRepeaterConfig,
   DmrGatewayConfig,
@@ -64,7 +65,13 @@ export function parseMmdvmHostConfig(text: string): ParsedMmdvmHost {
   const ini = parseIni(text);
 
   const callsign = iniString(ini, "General", "Callsign").toUpperCase();
-  const dmrId = iniString(ini, "DMR", "Id", iniString(ini, "General", "Id"));
+  // Pi-Star/WPSD convention: [General] Id is the bare 7-digit CCS7 ID;
+  // [DMR] Id may carry a 2-digit ESSID suffix for a direct (non-DMRGateway)
+  // network login. Keep the base as the canonical "DMR ID" and surface the
+  // suffix separately so a save never silently drops it.
+  const generalId = iniString(ini, "General", "Id");
+  const dmrSectionId = iniString(ini, "DMR", "Id", generalId);
+  const dmrId = (generalId || dmrSectionId).slice(0, 7);
 
   const general: GeneralConfig = {
     callsign,
@@ -96,14 +103,23 @@ export function parseMmdvmHostConfig(text: string): ParsedMmdvmHost {
   const dmrMasterAddress = iniString(ini, "DMR Network", "Address");
   const slot1Routed = iniBool(ini, "DMR Network", "Slot1");
   const slot2Routed = iniBool(ini, "DMR Network", "Slot2");
+  // 127.0.0.1 means MMDVMHost is talking to the local DMRGateway daemon;
+  // the real master/password/ESSID then live in /etc/dmrgateway, which
+  // store.ts overlays (this parser is deliberately single-file/pure).
+  const mode: DmrNetworkMode = dmrMasterAddress === "127.0.0.1" ? "gateway" : "direct";
+  const directEssid =
+    dmrSectionId.length > dmrId.length && dmrSectionId.startsWith(dmrId) ? dmrSectionId.slice(dmrId.length) : "";
 
   const dmrGateway: DmrGatewayConfig = {
     enabled: dmrEnabled,
     id: dmrId,
+    essid: mode === "direct" ? directEssid : "",
     colorCode: iniNumber(ini, "DMR", "ColorCode", 1),
     ts1Enabled: slot1Routed,
     ts2Enabled: slot2Routed,
+    mode,
     master: dmrMasterAddress,
+    masterPort: iniNumber(ini, "DMR Network", "Port", 62031),
     networkPassword: iniString(ini, "DMR Network", "Password"),
     bmApiKey: "",
   };

@@ -5,6 +5,7 @@ const NAV = [
   { to: "/admin", label: "Overview", end: true },
   { to: "/admin/configuration", label: "Configuration" },
   { to: "/admin/links", label: "Link Manager" },
+  { to: "/admin/brandmeister", label: "BrandMeister" },
   { to: "/admin/wifi", label: "WiFi" },
   { to: "/admin/ssh", label: "SSH Terminal" },
   { to: "/admin/logs", label: "Live Logs" },

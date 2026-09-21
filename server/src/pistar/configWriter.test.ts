@@ -80,3 +80,28 @@ describe("applySectionEdits", () => {
     expect(lines[lines.length - 1]).toBe("ColorCode=5");
   });
 });
+
+describe("applySectionEdits insertIfMissing", () => {
+  const LINES = ["[DMR Network 1]", "Enabled=1", "Address=old.example", "", "[DMR Network 2]", "Enabled=0"];
+
+  it("inserts a missing key at the end of its section, before the blank spacer", () => {
+    const { lines, skipped } = applySectionEdits(LINES, [
+      { section: "DMR Network 1", key: "Id", value: "322705701", insertIfMissing: true },
+    ]);
+    expect(skipped).toEqual([]);
+    expect(lines).toEqual(["[DMR Network 1]", "Enabled=1", "Address=old.example", "Id=322705701", "", "[DMR Network 2]", "Enabled=0"]);
+  });
+
+  it("still replaces in place when the key exists", () => {
+    const { lines } = applySectionEdits(LINES, [
+      { section: "DMR Network 1", key: "Address", value: "new.example", insertIfMissing: true },
+    ]);
+    expect(lines[2]).toBe("Address=new.example");
+    expect(lines.length).toBe(LINES.length);
+  });
+
+  it("reports a missing section as skipped even with insertIfMissing", () => {
+    const { skipped } = applySectionEdits(LINES, [{ section: "Nope", key: "X", value: "1", insertIfMissing: true }]);
+    expect(skipped).toHaveLength(1);
+  });
+});

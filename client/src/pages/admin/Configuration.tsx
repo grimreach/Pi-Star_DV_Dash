@@ -1,4 +1,4 @@
-import type { ConfigSection, FullConfig } from "@pistar/shared";
+import type { ConfigSection, DmrMasterHost, DmrNetworkMode, FullConfig } from "@pistar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { FieldRow, NumberInput, SectionCard, SelectInput, TextInput, Toggle } from "../../components/admin/Field";
@@ -43,7 +43,7 @@ export function Configuration() {
 
 interface ConfigPatchResponse {
   config: unknown;
-  real: { written: boolean; skipped?: string[]; error?: string };
+  real: { written: boolean; skipped?: string[]; error?: string; files?: string[] };
 }
 
 function SectionForm({ section, config }: { section: ConfigSection; config: FullConfig }) {
@@ -77,7 +77,11 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
   });
 
   const restartMutation = useMutation({
-    mutationFn: () => api.post<{ restarted: boolean; message?: string; error?: string }>("/system/mmdvmhost/restart"),
+    mutationFn: () =>
+      api.post<{ restarted: boolean; message?: string; error?: string; services?: string[] }>("/system/mmdvmhost/restart", {
+        // DMRGateway reads its own file, so a gateway-mode DMR save needs it bounced too.
+        dmrGateway: section === "dmrGateway" && draft.mode === "gateway",
+      }),
   });
 
   function set(key: string, value: unknown) {
@@ -107,7 +111,11 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
               className="rounded-md border border-[color:var(--border-subtle)] px-4 py-1.5 text-sm font-semibold hover:border-brand-500 disabled:opacity-60"
               title="Restart MMDVMHost to apply this change — interrupts any in-progress transmission"
             >
-              {restartMutation.isPending ? "Restarting…" : "Restart MMDVMHost to apply"}
+              {restartMutation.isPending
+                ? "Restarting…"
+                : section === "dmrGateway" && draft.mode === "gateway"
+                  ? "Restart DMRGateway + MMDVMHost to apply"
+                  : "Restart MMDVMHost to apply"}
             </button>
           )}
           {restartMutation.isSuccess && restartMutation.data.restarted && (
@@ -194,15 +202,91 @@ function MmdvmFields({ draft, set }: { draft: Record<string, unknown>; set: Sett
   );
 }
 
+function SecretInput({ value, onChange, autoComplete }: { value: string; onChange: (v: string) => void; autoComplete?: string }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <TextInput
+        type={shown ? "text" : "password"}
+        autoComplete={autoComplete ?? "off"}
+        spellCheck={false}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <button
+        type="button"
+        onClick={() => setShown((v) => !v)}
+        className="shrink-0 rounded-md border border-[color:var(--border-subtle)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:border-brand-500"
+        aria-pressed={shown}
+      >
+        {shown ? "Hide" : "Show"}
+      </button>
+    </div>
+  );
+}
+
+const ESSID_OPTIONS = ["", ...Array.from({ length: 99 }, (_, i) => String(i + 1).padStart(2, "0"))];
+const CUSTOM_MASTER = "__custom__";
+
 function DmrFields({ draft, set }: { draft: Record<string, unknown>; set: Setter }) {
+  const masters = useQuery({
+    queryKey: ["dmr-masters"],
+    queryFn: () => api.get<{ hosts: DmrMasterHost[]; source: "file" | "fallback" }>("/config/dmr-masters"),
+    staleTime: 5 * 60_000,
+  });
+  const hosts = (masters.data?.hosts ?? []).filter((h) => h.name !== "DMRGateway");
+  const mode = (draft.mode as DmrNetworkMode) ?? "direct";
+  const master = String(draft.master ?? "");
+  const masterPort = Number(draft.masterPort ?? 62031);
+  const matched = hosts.find((h) => h.address === master && h.port === masterPort);
+  const [customMaster, setCustomMaster] = useState(false);
+  const selectValue = customMaster || (!matched && master !== "") ? CUSTOM_MASTER : (matched?.name ?? "");
+  const isBrandMeister = (matched?.name ?? "").startsWith("BM_") || /brandmeister/i.test(master);
+  const loginId = `${String(draft.id ?? "")}${String(draft.essid ?? "")}`;
+
+  function chooseMaster(name: string) {
+    if (name === CUSTOM_MASTER) {
+      setCustomMaster(true);
+      return;
+    }
+    setCustomMaster(false);
+    const host = hosts.find((h) => h.name === name);
+    if (!host) return;
+    set("master", host.address);
+    set("masterPort", host.port);
+    // Non-BrandMeister networks use the hosts-file default password; BM
+    // uses the per-user Hotspot Security password, so leave that alone.
+    if (!host.name.startsWith("BM_") && host.password !== "none" && String(draft.networkPassword ?? "") === "") {
+      set("networkPassword", host.password);
+    }
+  }
+
   return (
     <>
       <FieldRow label="Enabled">
         <Toggle checked={Boolean(draft.enabled)} onChange={(v) => set("enabled", v)} />
       </FieldRow>
       <FieldRow label="DMR ID">
-        <TextInput value={String(draft.id ?? "")} onChange={(e) => set("id", e.target.value)} />
+        <TextInput
+          inputMode="numeric"
+          maxLength={7}
+          value={String(draft.id ?? "")}
+          onChange={(e) => set("id", e.target.value.replace(/[^0-9]/g, "").slice(0, 7))}
+        />
       </FieldRow>
+      <FieldRow label="ESSID">
+        <SelectInput value={String(draft.essid ?? "")} onChange={(e) => set("essid", e.target.value)}>
+          {ESSID_OPTIONS.map((v) => (
+            <option key={v || "none"} value={v}>
+              {v === "" ? "None" : v}
+            </option>
+          ))}
+        </SelectInput>
+      </FieldRow>
+      <p className="mb-2 -mt-1 text-xs text-[color:var(--text-muted)]">
+        Optional 2-digit extended ID appended for the network login (needed when more than one hotspot or radio shares
+        your DMR ID). Logs in as <strong>{loginId || "—"}</strong>.
+      </p>
       <FieldRow label="Color Code">
         <NumberInput min={0} max={15} value={Number(draft.colorCode ?? 1)} onChange={(e) => set("colorCode", Number(e.target.value))} />
       </FieldRow>
@@ -212,23 +296,74 @@ function DmrFields({ draft, set }: { draft: Record<string, unknown>; set: Setter
       <FieldRow label="TS2 Enabled">
         <Toggle checked={Boolean(draft.ts2Enabled)} onChange={(v) => set("ts2Enabled", v)} />
       </FieldRow>
-      <FieldRow label="Master">
-        <TextInput value={String(draft.master ?? "")} onChange={(e) => set("master", e.target.value)} />
-      </FieldRow>
-      <FieldRow label="Network Password">
-        <TextInput
-          type="password"
-          value={String(draft.networkPassword ?? "")}
-          onChange={(e) => set("networkPassword", e.target.value)}
-        />
+      <FieldRow label="Connection">
+        <SelectInput value={mode} onChange={(e) => set("mode", e.target.value as DmrNetworkMode)}>
+          <option value="direct">Direct — MMDVMHost logs into the master itself</option>
+          <option value="gateway">Via DMRGateway — multi-network, BrandMeister Manager support</option>
+        </SelectInput>
       </FieldRow>
       <p className="mb-2 -mt-1 text-xs text-[color:var(--text-muted)]">
-        The DMR network login password (e.g. your hotspot password from self-care.brandmeister.network) — not the
-        BrandMeister API key below.
+        {mode === "gateway"
+          ? "Master, password and ESSID are written to /etc/dmrgateway [DMR Network 1]; /etc/mmdvmhost is pointed at 127.0.0.1:62031. Requires the dmrgateway service."
+          : "Master, password and ESSID are written straight into /etc/mmdvmhost [DMR Network]."}
+      </p>
+      <FieldRow label="Master">
+        <div className="flex flex-col gap-2">
+          <SelectInput value={selectValue} onChange={(e) => chooseMaster(e.target.value)}>
+            <option value="" disabled>
+              {masters.isLoading ? "Loading master list…" : "Choose a master…"}
+            </option>
+            {hosts.map((h) => (
+              <option key={h.name} value={h.name}>
+                {h.name.replace(/_/g, " ")}
+              </option>
+            ))}
+            <option value={CUSTOM_MASTER}>Custom address…</option>
+          </SelectInput>
+          {selectValue === CUSTOM_MASTER && (
+            <div className="flex flex-wrap items-center gap-2">
+              <TextInput
+                className="min-w-0 flex-1"
+                placeholder="hostname or IP"
+                value={master}
+                onChange={(e) => set("master", e.target.value)}
+              />
+              <span className="text-xs text-[color:var(--text-muted)]">port</span>
+              <NumberInput min={1} max={65535} value={masterPort} onChange={(e) => set("masterPort", Number(e.target.value))} />
+            </div>
+          )}
+          {selectValue !== CUSTOM_MASTER && master && (
+            <span className="text-xs text-[color:var(--text-muted)]">
+              {master}:{masterPort}
+              {masters.data?.source === "fallback" && " · built-in list (DMR_Hosts.txt not found on this device)"}
+            </span>
+          )}
+        </div>
+      </FieldRow>
+      <FieldRow label={isBrandMeister ? "BM Hotspot Security" : "Network Password"}>
+        <SecretInput value={String(draft.networkPassword ?? "")} onChange={(v) => set("networkPassword", v)} />
+      </FieldRow>
+      <p className="mb-2 -mt-1 text-xs text-[color:var(--text-muted)]">
+        {isBrandMeister ? (
+          <>
+            The <em>Hotspot Security</em> password from{" "}
+            <a className="underline" href="https://brandmeister.network/?page=selfcare" target="_blank" rel="noreferrer">
+              BrandMeister SelfCare
+            </a>{" "}
+            (not your SelfCare login, and not the API key below). Leading/trailing spaces are removed on save; use Show to
+            compare it with SelfCare character-by-character if the master rejects the login.
+          </>
+        ) : (
+          <>The network login password — most non-BrandMeister networks use the DMR_Hosts.txt default (usually “passw0rd”).</>
+        )}
       </p>
       <FieldRow label="BrandMeister API Key">
-        <TextInput type="password" value={String(draft.bmApiKey ?? "")} onChange={(e) => set("bmApiKey", e.target.value)} />
+        <SecretInput value={String(draft.bmApiKey ?? "")} onChange={(v) => set("bmApiKey", v)} />
       </FieldRow>
+      <p className="mb-2 -mt-1 text-xs text-[color:var(--text-muted)]">
+        Saved to /etc/bmapi.key. Used by the BrandMeister Manager to add/drop static talkgroups. Create one under{" "}
+        <em>Profile settings → API keys</em> on brandmeister.network.
+      </p>
     </>
   );
 }
@@ -360,7 +495,7 @@ function SaveStatus({ result }: { result: ConfigPatchResponse["real"] }) {
   if (result.written) {
     return (
       <span className="text-sm text-ok-600">
-        Saved to /etc/mmdvmhost.
+        Saved to {result.files && result.files.length > 0 ? result.files.join(", ") : "/etc/mmdvmhost"}.
         {result.skipped && result.skipped.length > 0 && (
           <span className="text-[color:var(--text-muted)]"> ({result.skipped.length} field(s) not found in file)</span>
         )}

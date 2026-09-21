@@ -5,10 +5,14 @@ import type { ConfigSection } from "@pistar/shared";
 import { requireAuth } from "../auth.js";
 import { store } from "../store.js";
 import { wsHub } from "../ws.js";
-import { writeMmdvmHostConfig } from "../pistar/configWriter.js";
-import { buildMmdvmHostEdits } from "../pistar/mmdvmConfigWrite.js";
+import { BMAPI_KEY_PATH, renderBmApiKeyFile } from "../pistar/bmApiKey.js";
+import { installConfigFile, writeIniConfig } from "../pistar/configWriter.js";
+import { readDmrHosts, sortDmrHosts } from "../pistar/dmrHosts.js";
+import { buildDmrGatewayFileEdits, buildMmdvmHostEdits } from "../pistar/mmdvmConfigWrite.js";
 
 const MMDVMHOST_CONFIG_PATH = process.env.MMDVMHOST_CONFIG_PATH ?? "/etc/mmdvmhost";
+const DMRGATEWAY_CONFIG_PATH = process.env.DMRGATEWAY_CONFIG_PATH ?? "/etc/dmrgateway";
+const DMR_HOSTS_PATH = process.env.DMR_HOSTS_PATH ?? "/usr/local/etc/DMR_Hosts.txt";
 
 export const configRouter = Router();
 configRouter.use(requireAuth);
@@ -28,6 +32,13 @@ const SECTIONS: ConfigSection[] = [
 
 configRouter.get("/", (_req, res) => {
   res.json(store.config);
+});
+
+// Master list for the DMR tab's dropdown — the same DMR_Hosts.txt
+// Pi-Star/WPSD build theirs from, with a built-in fallback off-device.
+configRouter.get("/dmr-masters", (_req, res) => {
+  const { hosts, source } = readDmrHosts(DMR_HOSTS_PATH);
+  res.json({ hosts: sortDmrHosts(hosts), source });
 });
 
 configRouter.get("/:section", (req, res) => {
@@ -103,6 +114,7 @@ async function updateSection(req: Request, res: Response) {
     res.status(400).json({ error: "request body must be an object" });
     return;
   }
+  const previous = store.config[section];
   store.config = {
     ...store.config,
     [section]: { ...store.config[section], ...req.body },
@@ -113,16 +125,35 @@ async function updateSection(req: Request, res: Response) {
   // Persist to the real /etc/mmdvmhost when present. Requires the
   // sudoers rule documented in README — if it's missing, this fails
   // loudly rather than silently pretending the save reached the device.
-  let real: { written: boolean; skipped?: string[]; error?: string } = { written: false };
+  let real: { written: boolean; skipped?: string[]; error?: string; files?: string[] } = { written: false };
   if (existsSync(MMDVMHOST_CONFIG_PATH)) {
-    const edits = buildMmdvmHostEdits(section, store.config);
-    if (edits.length > 0) {
-      try {
-        const result = await writeMmdvmHostConfig(MMDVMHOST_CONFIG_PATH, edits);
-        real = { written: true, skipped: result.skipped.map((e) => `${e.section}.${e.key}`) };
-      } catch (err) {
-        real = { written: false, error: err instanceof Error ? err.message : String(err) };
+    const files: string[] = [];
+    const skipped: string[] = [];
+    try {
+      const edits = buildMmdvmHostEdits(section, store.config);
+      if (edits.length > 0) {
+        const result = await writeIniConfig(MMDVMHOST_CONFIG_PATH, edits);
+        files.push(MMDVMHOST_CONFIG_PATH);
+        skipped.push(...result.skipped.map((e) => `${e.section}.${e.key}`));
       }
+      if (section === "dmrGateway") {
+        // Gateway mode: the BrandMeister block lives in DMRGateway's file.
+        const gwEdits = buildDmrGatewayFileEdits(store.config);
+        if (gwEdits.length > 0 && existsSync(DMRGATEWAY_CONFIG_PATH)) {
+          const result = await writeIniConfig(DMRGATEWAY_CONFIG_PATH, gwEdits);
+          files.push(DMRGATEWAY_CONFIG_PATH);
+          skipped.push(...result.skipped.map((e) => `dmrgateway ${e.section}.${e.key}`));
+        }
+        // The API key is its own tiny file; only rewrite it when it changed.
+        const prevKey = (previous as { bmApiKey?: string }).bmApiKey ?? "";
+        if (store.config.dmrGateway.bmApiKey.trim() !== prevKey.trim()) {
+          await installConfigFile(BMAPI_KEY_PATH, renderBmApiKeyFile(store.config.dmrGateway.bmApiKey));
+          files.push(BMAPI_KEY_PATH);
+        }
+      }
+      real = { written: files.length > 0, skipped, files };
+    } catch (err) {
+      real = { written: false, error: err instanceof Error ? err.message : String(err), files };
     }
   }
 

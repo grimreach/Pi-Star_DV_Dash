@@ -7,6 +7,7 @@ import { useDashboard } from "../../lib/useDashboard";
 const CARDS = [
   { to: "/admin/configuration", title: "Configuration", desc: "Callsign, radio, and gateway settings" },
   { to: "/admin/links", title: "Link Manager", desc: "Connect/disconnect reflectors and talkgroups" },
+  { to: "/admin/brandmeister", title: "BrandMeister", desc: "Static and dynamic talkgroups via the BM API" },
   { to: "/admin/wifi", title: "WiFi", desc: "Manage wireless networks" },
   { to: "/admin/ssh", title: "SSH Access", desc: "Enable or disable remote shell access" },
   { to: "/admin/logs", title: "Live Logs", desc: "Tail the MMDVMHost log in real time" },

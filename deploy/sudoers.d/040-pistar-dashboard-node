@@ -3,8 +3,8 @@
 # section). Mirrors the pattern the original PHP dashboard's own sudoers
 # rules use for www-data (see PISTAR_DASH_MOUNT / PISTAR_DASH_INSTALL /
 # PISTAR_DASH_SYSTEMCTL in the stock Pi-Star sudoers), scoped down to just
-# what this app currently needs: writing /etc/mmdvmhost, restarting
-# MMDVMHost, WiFi scanning, WiFi connect/disconnect via add_network/
+# what this app currently needs: writing /etc/mmdvmhost, /etc/dmrgateway
+# and /etc/bmapi.key, restarting MMDVMHost and DMRGateway, WiFi scanning, WiFi connect/disconnect via add_network/
 # set_network/enable_network/disable_network/remove_network/save_config,
 # power (reboot/shutdown), and modem calibration (pistar-calibration-start).
 # Does not grant broad root access, and deliberately excludes ifdown/ifup
@@ -32,10 +32,13 @@ Cmnd_Alias PISTAR_DASH_NODE_MOUNT = \
     /usr/bin/mount -o remount\,ro /
 
 Cmnd_Alias PISTAR_DASH_NODE_INSTALL = \
-    /usr/bin/install -m 644 -o root -g root /tmp/pistar-node-cw-*.mmdvmhost /etc/mmdvmhost
+    /usr/bin/install -m 644 -o root -g root /tmp/pistar-node-cw-*.mmdvmhost /etc/mmdvmhost, \
+    /usr/bin/install -m 644 -o root -g root /tmp/pistar-node-cw-*.dmrgateway /etc/dmrgateway, \
+    /usr/bin/install -m 644 -o root -g root /tmp/pistar-node-cw-*.bmapikey /etc/bmapi.key
 
 Cmnd_Alias PISTAR_DASH_NODE_SYSTEMCTL = \
-    /usr/bin/systemctl restart mmdvmhost.service
+    /usr/bin/systemctl restart mmdvmhost.service, \
+    /usr/bin/systemctl restart dmrgateway.service
 
 Cmnd_Alias PISTAR_DASH_NODE_WIFI = \
     /sbin/wpa_cli -i wlan0 scan, \
