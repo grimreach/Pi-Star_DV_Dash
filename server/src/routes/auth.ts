@@ -49,7 +49,7 @@ const passwordSchema = z.object({
   newPassword: z.string().min(8),
 });
 
-authRouter.post("/password", (req, res) => {
+authRouter.post("/password", async (req, res) => {
   if (!req.session.user) {
     res.status(401).json({ error: "authentication required" });
     return;
@@ -59,9 +59,13 @@ authRouter.post("/password", (req, res) => {
     res.status(400).json({ error: "newPassword must be at least 8 characters" });
     return;
   }
-  const ok = changePassword(parsed.data.currentPassword, parsed.data.newPassword);
-  if (!ok) {
+  const result = await changePassword(parsed.data.currentPassword, parsed.data.newPassword);
+  if (!result.ok && result.reason === "wrong-password") {
     res.status(401).json({ error: "current password is incorrect" });
+    return;
+  }
+  if (!result.ok) {
+    res.status(500).json({ error: `password not changed — could not save it to disk: ${result.detail ?? "unknown error"}` });
     return;
   }
   res.status(204).end();

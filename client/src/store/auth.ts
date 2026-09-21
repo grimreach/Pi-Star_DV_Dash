@@ -9,6 +9,8 @@ interface AuthState {
   checkSession: () => Promise<void>;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  /** Resolves to null on success, or an error message to show. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<string | null>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -44,5 +46,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await api.post("/auth/logout");
     set({ status: "anonymous", username: null });
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      await api.post("/auth/password", { currentPassword, newPassword });
+      set({ defaultPassword: newPassword === "pi-star" });
+      return null;
+    } catch (err) {
+      return err instanceof ApiError ? err.message : "Password change failed";
+    }
   },
 }));

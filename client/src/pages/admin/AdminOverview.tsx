@@ -1,4 +1,6 @@
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
+import { FieldRow, SectionCard, TextInput } from "../../components/admin/Field";
 import { useAuthStore } from "../../store/auth";
 import { useDashboard } from "../../lib/useDashboard";
 
@@ -39,6 +41,79 @@ export function AdminOverview() {
           </Link>
         ))}
       </div>
+      <div className="mt-4">
+        <ChangePasswordForm />
+      </div>
     </div>
+  );
+}
+
+function ChangePasswordForm() {
+  const changePassword = useAuthStore((s) => s.changePassword);
+  const username = useAuthStore((s) => s.username);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setNotice(null);
+    if (next.length < 8) {
+      setNotice({ ok: false, text: "New password must be at least 8 characters." });
+      return;
+    }
+    if (next !== confirm) {
+      setNotice({ ok: false, text: "New passwords don't match." });
+      return;
+    }
+    setBusy(true);
+    const error = await changePassword(current, next);
+    setBusy(false);
+    if (error) {
+      setNotice({ ok: false, text: error });
+      return;
+    }
+    setCurrent("");
+    setNext("");
+    setConfirm("");
+    setNotice({ ok: true, text: "Password changed. It's saved on the device and will survive restarts." });
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <SectionCard
+        title="Admin password"
+        footer={
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={busy || !current || !next || !confirm}
+              className="rounded-md border border-transparent bg-brand-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
+            >
+              {busy ? "Changing…" : "Change password"}
+            </button>
+            {notice && (
+              <span className={`text-sm ${notice.ok ? "text-ok-600" : "text-brand-500"}`}>{notice.text}</span>
+            )}
+          </div>
+        }
+      >
+        <p className="mb-3 text-xs text-[color:var(--text-muted)]">
+          Login for <strong>{username ?? "admin"}</strong> on this dashboard. This is separate from the Pi's SSH
+          password and from any DMR network password.
+        </p>
+        <FieldRow label="Current password">
+          <TextInput type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+        </FieldRow>
+        <FieldRow label="New password">
+          <TextInput type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+        </FieldRow>
+        <FieldRow label="Confirm new password">
+          <TextInput type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        </FieldRow>
+      </SectionCard>
+    </form>
   );
 }

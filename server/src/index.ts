@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import session from "express-session";
+import { loadPersistedCredentials } from "./auth.js";
 import { authRouter } from "./routes/auth.js";
 import { calibrationRouter } from "./routes/calibration.js";
 import { configRouter } from "./routes/config.js";
@@ -18,6 +19,7 @@ import { wifiRouter } from "./routes/wifi.js";
 import { startRealActivityFeed } from "./pistar/activityFeed.js";
 import { startNetworkHealthMonitor } from "./pistar/networkHealth.js";
 import { startActivitySimulator, startSystemInfoBroadcast } from "./simulator.js";
+import { store } from "./store.js";
 import { wsHub } from "./ws.js";
 
 const PORT = Number(process.env.PORT ?? 4000);
@@ -88,6 +90,10 @@ if (NODE_ENV === "production") {
 }
 
 const httpServer = createServer(app);
+wsHub.setOnConnect((send) => {
+  send({ type: "dashboard:update", payload: store.dashboardState() });
+  send({ type: "system:update", payload: store.systemInfo() });
+});
 httpServer.on("upgrade", (req, socket, head) => {
   if (req.url === "/ws") {
     wsHub.handleUpgrade(req, socket, head);
@@ -107,6 +113,8 @@ if (stopRealActivityFeed) {
   console.log("[activityFeed] no real MMDVM log found — falling back to simulated activity");
   stopActivitySimulator = startActivitySimulator();
 }
+
+await loadPersistedCredentials();
 
 httpServer.listen(PORT, () => {
   console.log(`Pi-Star dashboard API listening on http://localhost:${PORT}`);

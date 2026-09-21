@@ -1,10 +1,13 @@
 import { NavLink } from "react-router";
+import { useDashboard } from "../lib/useDashboard";
 import { useLiveStore } from "../store/live";
 import { useAuthStore } from "../store/auth";
 import { THEMES, useThemeStore } from "../store/theme";
 
 export function Header() {
-  const dashboard = useLiveStore((s) => s.dashboard);
+  // Live snapshot when the socket has delivered one, REST otherwise —
+  // avoids the "…" callsign placeholder while the socket is (re)connecting.
+  const { data: dashboard } = useDashboard();
   const connected = useLiveStore((s) => s.connected);
   const status = useAuthStore((s) => s.status);
   const logout = useAuthStore((s) => s.logout);

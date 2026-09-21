@@ -114,7 +114,9 @@ swap, not a rewrite:
 | Calibration | `server/src/pistar/calibration.ts` | **Real**, full replica of `admin/calibration.php` — turned out to not be an RSSI/level mode toggle at all (an earlier wrong guess). The real mechanism: Start spawns MMDVMCal via `pistar-calibration-start` (takes MMDVMHost offline), a UDP socket sends single-letter commands (mode select, frequency nudge, step size, quit) to the running process on 127.0.0.1:33273, and all feedback (BER stats, mode changes, live frequency) comes from tailing its raw log output — parsed server-side and broadcast over WebSocket rather than the original's per-request session-offset polling. Save Offset writes RX/TXOffset to `/etc/mmdvmhost` via the existing config writer. Chunk-parsing (mode markers, frequency regex, BER aggregation, the voice-end reset) verified against realistic sample output before shipping. Not yet verified against a real MMDVMCal session (no live hardware test yet). |
 | System info | `server/src/pistar/systemInfo.ts` | **Real** — uptime/load/memory via Node's `os` module, disk via `fs.statfsSync`, CPU temp via `/sys/class/thermal/thermal_zone0/temp` (no `vcgencmd`, no shelling out, no sudo needed). Falls back to mock on non-Linux hosts. |
 
-Auth is a simple session (default `admin` / `pi-star`, changeable from the Admin Overview page) — swap in
+Auth is a simple session (default `admin` / `pi-star`, changeable from the Admin Overview page; the bcrypt hash is
+persisted to `data/auth.json` under the repo — override with `AUTH_STATE_PATH` — so it survives restarts and reboots,
+remounting the read-only root around the write using the same sudo grant as the config writer) — swap in
 Pi-Star's real credential store if you want continuity with existing installs.
 
 Not ported: the multi-language UI (English only), and the D-Star-only "dstarrepeater mode" vs. MMDVMHost-mode

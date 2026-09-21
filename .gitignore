@@ -3,3 +3,5 @@ dist/
 .env
 *.log
 .DS_Store
+# Runtime state written by the server (admin credentials hash)
+data/
