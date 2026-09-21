@@ -50,9 +50,11 @@
 #
 # The `include /etc/nginx/default.d/security.conf` lines below pull in the
 # stock Pi-Star hardening snippet, which among other things returns 444
-# (connection closed) for any request method other than GET/HEAD/POST. The
-# Node API is written to only need GET and POST for that reason — if you add
-# a route using PATCH/PUT/DELETE it will work on :8080 but be dropped here.
+# (connection closed) for any request method other than GET/HEAD/POST, and
+# caps request bodies at 1k. The Node API is written to only need GET and
+# POST for that reason — if you add a route using PATCH/PUT/DELETE it will
+# work on :8080 but be dropped here — and the proxy locations raise the body
+# cap to 64k so config saves with long values (API keys) get through.
 #
 # The separate captive-portal site (redirects connectivity-check hostnames
 # to 192.168.50.1/index.php) is untouched by this file and needs no changes
@@ -72,6 +74,13 @@ server {
         }
 
         location / {
+                # security.conf (included below) caps request bodies at 1k,
+                # sized for the PHP dashboard's tiny form posts. A config save
+                # carrying a BrandMeister API key (a ~1 KB JWT) or a WiFi
+                # passphrase exceeds that and nginx answers 413 before the app
+                # sees it. Location-level values override the server-level cap.
+                client_max_body_size 64k;
+                client_body_buffer_size 64k;
                 proxy_pass http://127.0.0.1:8080;
                 proxy_http_version 1.1;
                 proxy_set_header Host $host;
@@ -109,6 +118,13 @@ server {
         }
 
         location / {
+                # security.conf (included below) caps request bodies at 1k,
+                # sized for the PHP dashboard's tiny form posts. A config save
+                # carrying a BrandMeister API key (a ~1 KB JWT) or a WiFi
+                # passphrase exceeds that and nginx answers 413 before the app
+                # sees it. Location-level values override the server-level cap.
+                client_max_body_size 64k;
+                client_body_buffer_size 64k;
                 proxy_pass http://127.0.0.1:8080;
                 proxy_http_version 1.1;
                 proxy_set_header Host $host;
