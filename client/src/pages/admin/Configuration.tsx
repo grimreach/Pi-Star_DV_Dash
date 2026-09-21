@@ -92,7 +92,7 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
           <button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
-            className="rounded-md bg-brand-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
+            className="rounded-md border border-transparent bg-brand-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
           >
             {mutation.isPending ? "Saving…" : "Save changes"}
           </button>
@@ -104,7 +104,7 @@ function SectionForm({ section, config }: { section: ConfigSection; config: Full
             <button
               onClick={() => restartMutation.mutate()}
               disabled={restartMutation.isPending}
-              className="rounded-md border border-[color:var(--border-subtle)] px-3 py-1.5 text-xs font-semibold hover:border-brand-500 disabled:opacity-60"
+              className="rounded-md border border-[color:var(--border-subtle)] px-4 py-1.5 text-sm font-semibold hover:border-brand-500 disabled:opacity-60"
               title="Restart MMDVMHost to apply this change — interrupts any in-progress transmission"
             >
               {restartMutation.isPending ? "Restarting…" : "Restart MMDVMHost to apply"}
